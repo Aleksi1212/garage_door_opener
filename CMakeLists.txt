@@ -50,7 +50,7 @@ target_link_libraries(${PROJECT_NAME}
     pico_stdlib
     hardware_pwm
     hardware_gpio
-    # hardware_i2c
+    hardware_i2c
     # additional Pico SDK libraries
 )
 

@@ -1,6 +1,9 @@
 #include <iostream>
 #include <pico/stdlib.h>
 #include <hardware/gpio.h>
+#include <motor.hpp>
+#include <program_state.hpp>
+#include <hardware.hpp>
 
 using namespace std;
 
@@ -11,15 +14,21 @@ int main()
 {
     stdio_init_all();
 
-    gpio_init(LED);
-    gpio_set_dir(LED, GPIO_OUT);
+    ProgramState program_state;
+    auto ps_ptr = make_shared<ProgramState>(program_state);
+
+    Motor motor(ps_ptr);
+
+    // gpio_init(LED);
+    // gpio_set_dir(LED, GPIO_OUT);
 
     while (true)
     {
-        gpio_put(LED, true);
-        sleep_ms(1000);
-        gpio_put(LED, false);
-        sleep_ms(1000);
+        motor.calibrate();
+        // gpio_put(LED, true);
+        // sleep_ms(1000);
+        // gpio_put(LED, false);
+        // sleep_ms(1000);
     }
 
     return 0;
