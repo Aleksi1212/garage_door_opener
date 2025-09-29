@@ -81,7 +81,7 @@ void GarageDoor::calibrate_motor()
 
     led1.write(true);
 
-    if ((sw0() && sw2())) {
+    if (ps.is_running || (sw0() && sw2())) {
         ps.is_running = 1;
         program_state->write(ps);
 
@@ -111,7 +111,7 @@ void GarageDoor::calibrate_motor()
 // for testing
 void GarageDoor::reset()
 {
-    if (sw1()) {
+    if (sw0() && sw1() && sw2()) {
         program_state->reset_eeprom();
     }
 }
