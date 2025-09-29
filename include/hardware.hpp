@@ -22,7 +22,7 @@
 
 #define EEPROM_ADDR 0x50
 #define EEPROM_PORT i2c0
-#define EEPROM_sda_pin 16
-#define EEPROM_scl_pin 17
+#define EEPROM_SDA_PIN 16
+#define EEPROM_SCL_PIN 17
 
 #endif
