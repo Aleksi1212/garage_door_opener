@@ -13,6 +13,7 @@ ProgramState::ProgramState() : Eeprom(EEPROM_PORT, EEPROM_BAUD_RATE)
     state.door_position = 0;
     state.is_running = 0;
     state.calibrated = 0;
+    state.is_open = 0;
 
     load_from_eeprom();
 }
@@ -35,6 +36,9 @@ void ProgramState::write_to_eeprom()
 
     Eeprom::write_byte(EE_ADDR_CALIBRATED + 1, ~state.calibrated);
     Eeprom::write_byte(EE_ADDR_CALIBRATED, state.calibrated);
+
+    Eeprom::write_byte(EE_ADDR_IS_OPEN + 1, ~state.is_open);
+    Eeprom::write_byte(EE_ADDR_IS_OPEN, state.is_open);
 
     std::cout << "written." << std::endl;
     
@@ -82,6 +86,14 @@ void ProgramState::load_from_eeprom()
     if ((uint8_t)(calibrated ^ calibrated_inv) == 0xFF) {
         state.calibrated = calibrated;
     }
+
+    /* Load is_open*/
+    uint8_t is_open = Eeprom::read_byte(EE_ADDR_IS_OPEN);
+    uint8_t is_open_inv = Eeprom::read_byte(EE_ADDR_IS_OPEN + 1);
+
+    if ((uint8_t)(is_open ^ is_open_inv) == 0xFF) {
+        state.is_open = is_open;
+    }
     std::cout << "loaded." << std::endl;
 }
 
@@ -105,6 +117,7 @@ void ProgramState::reset_eeprom()
     state.door_position = 0;
     state.is_running = 0;
     state.calibrated = 0;
+    state.is_open = 0;
 
     write_to_eeprom();
 }
