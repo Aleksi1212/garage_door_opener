@@ -10,9 +10,6 @@ Eeprom::Eeprom(i2c_inst_t *_i2c, uint baudrate) : i2c(_i2c)
 {
     i2c_init(i2c, baudrate);
 
-    // GPIOPin sda_pin(EEPROM_sda_pin, false, true, false, GPIO_FUNC_I2C);
-    // GPIOPin scl_pin(EEPROM_scl_pin, false, true, false, GPIO_FUNC_I2C);
-
     GPIOPin sda_pin(EEPROM_SDA_PIN, GPIO_FUNC_I2C, false, true, false);
     GPIOPin scl_pin(EEPROM_SCL_PIN, GPIO_FUNC_I2C, false, true, false);
 }

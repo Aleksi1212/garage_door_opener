@@ -12,11 +12,8 @@ void irq_callback(uint gpio, uint32_t event_mask)
 {
     switch (gpio)
     {
-        case LIMIT_SW_1:
-            limit_switch_1_callback(event_mask);
-            break;
-        case LIMIT_SW_2:
-            limit_switch_2_callback(event_mask);
+        case ROT_SIG_A:
+            rot_encoder_callback(event_mask);
             break;
     }
 }
@@ -31,9 +28,10 @@ int main()
 
     while (true)
     {
-        T_ProgramState ps = ps_ptr->read();
+        auto ps = ps_ptr->read();
         cout << "Calibrated: " << (int)ps.calibrated << endl;
         cout << "Door position: " << (int)ps.door_position << endl;
+        cout << "Is open: " << (int)ps.is_open << endl;
         cout << "Is running: " << (int)ps.is_running << endl;
         cout << "Steps up: " << (int)ps.steps_up << endl;
         cout << "Steps down: " << (int)ps.steps_down << "\n\n" << endl;

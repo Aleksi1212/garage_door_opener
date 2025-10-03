@@ -6,11 +6,12 @@
 
 struct T_ProgramState
 {
-    uint16_t steps_up;
-    uint16_t steps_down;
-    uint16_t door_position;
-    uint8_t is_running;
-    uint8_t calibrated;
+    uint16_t steps_up; // steps to bring door up
+    uint16_t steps_down; // steps to bring door down
+    uint16_t door_position; // current door position (figure out how to use this)
+    uint8_t is_running; // door currently opening / closing 0 = no, 1 = yes
+    uint8_t calibrated; // motor calibrated
+    uint8_t is_open; // door 1 = open, 0 = closed
 };
 
 /* --------------------------------------------------------------------
@@ -32,16 +33,27 @@ struct T_ProgramState
  * 0x7FF2  ~is_running           (1 byte)
  * 0x7FF1  calibrated            (1 byte)
  * 0x7FF0  ~calibrated           (1 byte)
+ * 0x7FEF  is_open               (1 byte)
+ * 0x7FEE  ~is_open              (1 byte)
  * ------------------------------------------------------------------ */
 
-#define EE_ADDR_CALIBRATED     0x7FF1  // 1 byte
-#define EE_ADDR_IS_RUNNING     0x7FF3  // 1 byte
-#define EE_ADDR_DOOR_POSITION  0x7FF6  // 2 bytes
+#define EE_ADDR_IS_OPEN          0x7FEF  // 1 byte
+
+#define EE_ADDR_CALIBRATED       0x7FF1  // 1 byte
+
+#define EE_ADDR_IS_RUNNING       0x7FF3  // 1 byte
+
+
+#define EE_ADDR_DOOR_POSITION    0x7FF6  // 2 bytes
 #define EE_ADDR_DOOR_POSITION_INV 0x7FF4 // 2 bytes
-#define EE_ADDR_STEPS_DOWN     0x7FFA  // 2 bytes
-#define EE_ADDR_STEPS_DOWN_INV 0x7FF8  // 2 bytes
-#define EE_ADDR_STEPS_UP       0x7FFE  // 2 bytes
-#define EE_ADDR_STEPS_UP_INV   0x7FFC  // 2 bytes
+
+#define EE_ADDR_STEPS_DOWN       0x7FFA  // 2 bytes
+#define EE_ADDR_STEPS_DOWN_INV   0x7FF8  // 2 bytes
+
+#define EE_ADDR_STEPS_UP         0x7FFE  // 2 bytes
+#define EE_ADDR_STEPS_UP_INV     0x7FFC  // 2 bytes
+
+
 
 
 class ProgramState : private Eeprom

@@ -26,6 +26,9 @@ class GarageDoor
         GPIOPin lim_sw1;
         GPIOPin lim_sw2;
 
+        GPIOPin rot_a;
+        GPIOPin rot_b;
+
         uint16_t steps_up = 0;
         uint16_t steps_down = 0;
 
@@ -39,7 +42,6 @@ class GarageDoor
         void reset();
 };
 
-void limit_switch_1_callback(uint32_t event_mask);
-void limit_switch_2_callback(uint32_t event_mask);
+void rot_encoder_callback(uint32_t event_mask);
 
 #endif

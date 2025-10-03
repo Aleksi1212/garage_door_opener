@@ -20,21 +20,19 @@ static const uint8_t STEP_SEQUENCE[STEP_SEQ_COUNT][4] = {
 	{1, 0, 0, 1}   // Step 8
 };
 
-static queue_t limit_switch_1_queue;
-static queue_t limit_switch_2_queue;
+static queue_t rot_encoder_queue;
 
-void limit_switch_1_callback(uint32_t event_mask)
+void rot_encoder_callback(uint32_t event_mask)
 {
-    if ((event_mask & GPIO_IRQ_EDGE_FALL)) {
-        uint8_t hit_right = 1;
-        queue_try_add(&limit_switch_1_queue, &hit_right);
-    }
-}
-void limit_switch_2_callback(uint32_t event_mask)
-{
-    if ((event_mask & GPIO_IRQ_EDGE_FALL)) {
-        uint8_t hit_left = 1;
-        queue_try_add(&limit_switch_2_queue, &hit_left);
+    if ((event_mask & GPIO_IRQ_EDGE_RISE)) {
+        uint8_t rot_direction = 1;
+
+        if (gpio_get(ROT_SIG_B) == 0) {
+            queue_try_add(&rot_encoder_queue, &rot_direction);
+        } else {
+            rot_direction = 0;
+            queue_try_add(&rot_encoder_queue, &rot_direction);
+        }   
     }
 }
 
@@ -57,9 +55,14 @@ GarageDoor::GarageDoor(std::shared_ptr<ProgramState> state) :
     led2(LED_2, -1, false, false),
     led3(LED_3, -1, false, false),
 
-    lim_sw1(LIMIT_SW_1, -1, true, true, true, true, GPIO_IRQ_EDGE_FALL),
-    lim_sw2(LIMIT_SW_2, -1, true, true, true, true, GPIO_IRQ_EDGE_FALL)
-{}
+    lim_sw1(LIMIT_SW_1, -1, true, true, true),
+    lim_sw2(LIMIT_SW_2, -1, true, true, true),
+
+    rot_a(ROT_SIG_A, -1, true, false, false, true, GPIO_IRQ_EDGE_RISE),
+    rot_b(ROT_SIG_B, -1, true, false, false)
+{
+    queue_init(&rot_encoder_queue, sizeof(uint8_t), 10);
+}
 
 void GarageDoor::half_step_motor(bool reverse)
 {
@@ -77,7 +80,7 @@ void GarageDoor::half_step_motor(bool reverse)
 
 void GarageDoor::calibrate_motor()
 {
-    T_ProgramState ps = program_state->read();
+    auto ps = program_state->read();
 
     led1.write(true);
 
@@ -85,18 +88,25 @@ void GarageDoor::calibrate_motor()
         ps.is_running = 1;
         program_state->write(ps);
 
+        uint8_t rot = 0;
+        while(queue_try_remove(&rot_encoder_queue, &rot));
+
         while(!lim_sw1()) half_step_motor();
         while(!lim_sw2()) {
+            if (queue_try_remove(&rot_encoder_queue, &rot)) {
+                ps.is_open = 1;
+            }
             half_step_motor(true);
-            steps_up++;
+            ps.steps_down++;
         }
         while(!lim_sw1()) {
+            if (queue_try_remove(&rot_encoder_queue, &rot)) {
+                ps.is_open = 0;
+            }
             half_step_motor();
-            steps_down++;
+            ps.steps_up++;
         }
 
-        ps.steps_up = steps_up;
-        ps.steps_down = steps_down;
         ps.door_position = 0;
         ps.is_running = 0;
         ps.calibrated = 1;
