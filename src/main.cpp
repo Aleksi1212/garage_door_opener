@@ -5,11 +5,12 @@
 #include <program_state.hpp>
 #include <hardware.hpp>
 #include <irq_callback.hpp>
+#include <pico/multicore.h>
 
 #include <Countdown.hpp>
 #include <IPStack.hpp>
 #include "MQTTClient/src/MQTTClient.h"
-#include "network_info.h"
+#include <mqtt.hpp>
 
 using namespace std;
 
@@ -23,13 +24,13 @@ void irq_callback(uint gpio, uint32_t event_mask)
     }
 }
 
-void messageArrived(MQTT::MessageData &md) {
-    MQTT::Message &message = md.message;
+// void messageArrived(MQTT::MessageData &md) {
+//     MQTT::Message &message = md.message;
 
-    printf("Message arrived: qos %d, retained %d, dup %d, packetid %d\n",
-           message.qos, message.retained, message.dup, message.id);
-    printf("Payload %s\n", (char *) message.payload);
-}
+//     printf("Message arrived: qos %d, retained %d, dup %d, packetid %d\n",
+//            message.qos, message.retained, message.dup, message.id);
+//     printf("Payload %s\n", (char *) message.payload);
+// }
 
 
 int main()
@@ -39,74 +40,76 @@ int main()
     cout << "\nBOOT\n" << endl;
 
     auto ps_ptr = make_shared<ProgramState>();
+    auto mqtt_ptr = Mqtt::create();
+    // multicore_launch_core1(Mqtt::listener);
 
-    GarageDoor garage_door(ps_ptr);
+    GarageDoor garage_door(ps_ptr, mqtt_ptr);
 
-    GPIOPin led1(LED_1, -1, false, false);
-    GPIOPin led2(LED_2, -1, false, false);
-    GPIOPin led3(LED_3, -1, false, false);
+    // GPIOPin led1(LED_1, -1, false, false);
+    // GPIOPin led2(LED_2, -1, false, false);
+    // GPIOPin led3(LED_3, -1, false, false);
 
-    led1.write(true);
-    led2.write(true);
-    led3.write(true);
+    // led1.write(true);
+    // led2.write(true);
+    // led3.write(true);
 
 
-    const char *command_topic = "garage/door/command";
-    const char *response_topic = "garage/door/response";
-    const char *status_topic = "garage/door/status";
+    // const char *command_topic = "garage/door/command";
+    // const char *response_topic = "garage/door/response";
+    // const char *status_topic = "garage/door/status";
 
-    IPStack ipstack(SSID, PW);
-    auto client = MQTT::Client<IPStack, Countdown>(ipstack);
+    // IPStack ipstack(SSID, PW);
+    // auto client = MQTT::Client<IPStack, Countdown>(ipstack);
 
-    int rc = ipstack.connect(HOSTNAME, PORT);
-    if (rc != 1) {
-        cout << "rc from TCP connect is " << rc << endl;
-    }
+    // int rc = ipstack.connect(HOSTNAME, PORT);
+    // if (rc != 1) {
+    //     cout << "rc from TCP connect is " << rc << endl;
+    // }
 
-    led1.write(true);
-    led2.write(false);
-    led3.write(false);
+    // led1.write(true);
+    // led2.write(false);
+    // led3.write(false);
 
-    cout << "MQTT connecting..." << endl;
-    MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
-    data.MQTTVersion = 3;
-    data.clientID.cstring = (char *)"PicoW-sample";
+    // cout << "MQTT connecting..." << endl;
+    // MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
+    // data.MQTTVersion = 3;
+    // data.clientID.cstring = (char *)"PicoW-sample";
 
-    rc = client.connect(data);
-    if (rc != 0) {
-        cout << "rc from MQTT connect is " << rc << endl;
-        while (true) {
-            tight_loop_contents();
+    // rc = client.connect(data);
+    // if (rc != 0) {
+    //     cout << "rc from MQTT connect is " << rc << endl;
+    //     while (true) {
+    //         tight_loop_contents();
 
-            led1.write(true);
-            led2.write(true);
-            led3.write(true);
-            sleep_ms(500);
-            led1.write(false);
-            led2.write(false);
-            led3.write(false);
-            sleep_ms(500);
+    //         led1.write(true);
+    //         led2.write(true);
+    //         led3.write(true);
+    //         sleep_ms(500);
+    //         led1.write(false);
+    //         led2.write(false);
+    //         led3.write(false);
+    //         sleep_ms(500);
 
-        }
-    }
-    cout << "MQTT connected" << endl;
-    led1.write(false);
-    led2.write(true);
-    led3.write(false);
+    //     }
+    // }
+    // cout << "MQTT connected" << endl;
+    // led1.write(false);
+    // led2.write(true);
+    // led3.write(false);
 
-    rc = client.subscribe(command_topic, MQTT::QOS2, messageArrived);
-    if (rc != 0) {
-        cout << "rc from MQTT subscribe is " << rc << endl;
-    }
-    led1.write(false);
-    led2.write(false);
-    led3.write(true);
+    // rc = client.subscribe(command_topic, MQTT::QOS2, messageArrived);
+    // if (rc != 0) {
+    //     cout << "rc from MQTT subscribe is " << rc << endl;
+    // }
+    // led1.write(false);
+    // led2.write(false);
+    // led3.write(true);
     // cout << "MQTT subscribed to " << command_topic << endl;
 
 
     while (true)
     {
-        cout << "MQTT subscribed to " << command_topic << endl;
+        // cout << "MQTT subscribed to " << command_topic << endl;
 
         // auto ps = ps_ptr->read();
         // cout << "Calibrated: " << (int)ps.calibrated << endl;
@@ -120,6 +123,7 @@ int main()
         //     garage_door.calibrate_motor();
         // }
         // garage_door.reset();
+        garage_door.test_mqtt();
         sleep_ms(100);
     }
 
