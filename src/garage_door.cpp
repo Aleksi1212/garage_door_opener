@@ -39,8 +39,12 @@ void rot_encoder_callback(uint32_t event_mask)
 /*
     GarageDoor methods
 */
-GarageDoor::GarageDoor(std::shared_ptr<ProgramState> state) :
+GarageDoor::GarageDoor(
+    std::shared_ptr<ProgramState> state,
+    std::shared_ptr<Mqtt> mqtt
+) :
     program_state(state),
+    mqtt_client(mqtt),
 
     in1(MOTOR_IN_1, -1, false, false),
     in2(MOTOR_IN_2, -1, false, false),
@@ -118,10 +122,26 @@ void GarageDoor::calibrate_motor()
     }
 }
 
-// for testing
+/*
+    FOR TESTING
+*/
 void GarageDoor::reset()
 {
     if (sw0() && sw1() && sw2()) {
         program_state->reset_eeprom();
+    }
+}
+
+void GarageDoor::test_mqtt()
+{
+    if (!(*mqtt_client)()) {
+        led1.write(true);
+        mqtt_client->connect();
+        led1.write(false);
+    }
+
+    char msg_buf[MQTT_MSG_SIZE];
+    if (mqtt_client->try_get_mqtt_msg(msg_buf, sizeof(msg_buf))) {
+        std::cout << "MQTT message recieved: " << msg_buf << std::endl;
     }
 }
