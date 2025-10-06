@@ -28,9 +28,11 @@ set(CMAKE_CXX_STANDARD 17)
 pico_sdk_init()
 
 file(GLOB_RECURSE SRC_FILES "src/*.cpp")
+file(GLOB MQTT_SOURCES "paho.mqtt.embedded-c/MQTTPacket/src/*.c")
 # Add the project source files
 add_executable(${PROJECT_NAME}
   ${SRC_FILES}
+  ${MQTT_SOURCES}
 )
 
 
@@ -43,6 +45,8 @@ target_compile_options(${PROJECT_NAME} PRIVATE
 target_include_directories(${PROJECT_NAME}
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+    paho.mqtt.embedded-c/MQTTPacket/src
+    paho.mqtt.embedded-c
 )
 
 # Link the Pico SDK libraries
@@ -51,6 +55,7 @@ target_link_libraries(${PROJECT_NAME}
     hardware_pwm
     hardware_gpio
     hardware_i2c
+    pico_cyw43_arch_lwip_poll
     # additional Pico SDK libraries
 )
 
