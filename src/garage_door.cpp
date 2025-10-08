@@ -6,6 +6,8 @@
 #include <iostream>
 #include <hardware.hpp>
 #include <array>
+#include <algorithm>
+#include <cctype>
 
 #define STEP_SEQ_COUNT 8
 
@@ -21,6 +23,8 @@ static const uint8_t STEP_SEQUENCE[STEP_SEQ_COUNT][4] = {
 };
 
 static queue_t rot_encoder_queue;
+static queue_t sw0_queue;
+static queue_t sw2_queue;
 
 void rot_encoder_callback(uint32_t event_mask)
 {
@@ -33,6 +37,30 @@ void rot_encoder_callback(uint32_t event_mask)
             rot_direction = 0;
             queue_try_add(&rot_encoder_queue, &rot_direction);
         }   
+    }
+}
+
+void sw0_callback(uint32_t event_mask)
+{
+    if ((event_mask & GPIO_IRQ_EDGE_FALL)) {
+        uint8_t event = 1;
+        queue_try_add(&sw0_queue, &event);
+    }
+}
+void sw2_callback(uint32_t event_mask)
+{
+    if ((event_mask & GPIO_IRQ_EDGE_FALL)) {
+        uint8_t event = 1;
+        queue_try_add(&sw2_queue, &event);
+    }
+}
+
+static void to_upper(char *str)
+{
+    if (!str) return;
+    while (*str) {
+        *str = std::toupper(static_cast<unsigned char>(*str));
+        ++str;
     }
 }
 
@@ -51,9 +79,9 @@ GarageDoor::GarageDoor(
     in3(MOTOR_IN_3, -1, false, false),
     in4(MOTOR_IN_4, -1, false, false),
 
-    sw0(SW_0, -1, true, true, true),
-    sw1(SW_1, -1, true, true, true),
-    sw2(SW_2, -1, true, true, true),
+    sw0(SW_0, -1, true, true, true, true, GPIO_IRQ_EDGE_FALL),
+    sw1(SW_1, -1, true, true, true, true, GPIO_IRQ_EDGE_FALL),
+    sw2(SW_2, -1, true, true, true, true, GPIO_IRQ_EDGE_FALL),
 
     led1(LED_1, -1, false, false),
     led2(LED_2, -1, false, false),
@@ -65,6 +93,9 @@ GarageDoor::GarageDoor(
     rot_a(ROT_SIG_A, -1, true, false, false, true, GPIO_IRQ_EDGE_RISE),
     rot_b(ROT_SIG_B, -1, true, false, false)
 {
+    queue_init(&sw0_queue, sizeof(uint8_t), 10);
+    queue_init(&sw2_queue, sizeof(uint8_t), 10);
+
     queue_init(&rot_encoder_queue, sizeof(uint8_t), 10);
 }
 
@@ -122,6 +153,83 @@ void GarageDoor::calibrate_motor()
     }
 }
 
+void GarageDoor::connect_mqtt_client()
+{
+    if (!(*mqtt_client)()) {
+        std::cout << "connect" << std::endl;
+        mqtt_client->connect();
+    }
+}
+
+void GarageDoor::remote_control()
+{
+    std::cout << (*mqtt_client)() << std::endl;
+    if (!(*mqtt_client)()) {
+        std::cout << "Client not connected :(" << std::endl;
+        return;
+    }
+
+    T_MQTT_payload payload_buff{};
+    if (mqtt_client->try_get_mqtt_msg(&payload_buff) &&
+        strcmp(payload_buff.topic, COMMAND_TOPIC) == 0)
+    {
+        to_upper(payload_buff.message);
+
+        int command = (
+            strcmp(payload_buff.message, "OPEN")    == 0    ? 1 :
+            strcmp(payload_buff.message, "CLOSE")   == 0    ? 2 :
+            strcmp(payload_buff.message, "STOP")    == 0    ? 3 : 0
+        );
+
+        int rc = -1;
+        switch (command) {
+            case 1:
+                std::cout << "door opening..." << std::endl;
+                rc = mqtt_client->send_message(RESPONSE_TOPIC, "door opened");
+                if (rc != 0) {
+                    std::cout << "failed " << rc << std::endl;
+                } else {
+                    std::cout << "success" << std::endl;
+
+                }
+                break;
+            case 2:
+                std::cout << "door closing..." << std::endl;
+                rc = mqtt_client->send_message(RESPONSE_TOPIC, "door closed");
+                if (rc != 0) {
+                    std::cout << "failed " << rc << std::endl;
+                } else {
+                    std::cout << "success" << std::endl;
+
+                }
+
+                break;
+            case 3:
+                std::cout << "door stopping..." << std::endl;
+                rc = mqtt_client->send_message(RESPONSE_TOPIC, "door stopped");
+                if (rc != 0) {
+                    std::cout << "failed " << rc << std::endl;
+                } else {
+                    std::cout << "success" << std::endl;
+
+                }
+
+                break;
+            default:
+                std::cout << "invalid command" << std::endl;
+                rc = mqtt_client->send_message(RESPONSE_TOPIC, "invalid command");
+                if (rc != 0) {
+                    std::cout << "failed " << rc << std::endl;
+                } else {
+                    std::cout << "success" << std::endl;
+
+                }
+
+                break;
+        }
+    }
+}
+
 /*
     FOR TESTING
 */
@@ -132,16 +240,18 @@ void GarageDoor::reset()
     }
 }
 
+
 void GarageDoor::test_mqtt()
 {
-    if (!(*mqtt_client)()) {
-        led1.write(true);
-        mqtt_client->connect();
-        led1.write(false);
-    }
-
-    char msg_buf[MQTT_MSG_SIZE];
-    if (mqtt_client->try_get_mqtt_msg(msg_buf, sizeof(msg_buf))) {
-        std::cout << "MQTT message recieved: " << msg_buf << std::endl;
+    if ((*mqtt_client)()) {
+        T_MQTT_payload payload_buff;
+        if (mqtt_client->try_get_mqtt_msg(&payload_buff)) {
+            std::cout << "MQTT message recieved: \n"
+                << "Topic: " << payload_buff.topic << "\n"
+                << "Message: " << payload_buff.message << "\n"
+                << "Command topic cmp: " << strcmp(payload_buff.topic, COMMAND_TOPIC) << "\n"
+                << "Response topic cmp: " << strcmp(payload_buff.topic, RESPONSE_TOPIC) << "\n"
+                << "Status topic cmp: " << strcmp(payload_buff.topic, STATUS_TOPIC) << std::endl;
+        }
     }
 }

@@ -44,10 +44,17 @@ class GarageDoor
             std::shared_ptr<Mqtt> mqtt
         );
         void calibrate_motor();
+        void connect_mqtt_client();
+        void remote_control();
+
+        /* TESTING */
         void reset();
         void test_mqtt();
 };
 
+
+void sw0_callback(uint32_t event_mask);
+void sw2_callback(uint32_t event_mask);
 void rot_encoder_callback(uint32_t event_mask);
 
 #endif
