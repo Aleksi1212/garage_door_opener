@@ -1,3 +1,9 @@
+
+//
+// Created by Keijo Länsikunnas on 12.2.2024.
+// https://gitlab.metropolia.fi/lansk/pico-modbus/-/blob/main/mqtt/IPStack.h?ref_type=heads
+//
+
 #include <cstring>
 #include "pico/time.h"
 
