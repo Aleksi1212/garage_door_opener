@@ -21,16 +21,14 @@ void irq_callback(uint gpio, uint32_t event_mask)
         case ROT_SIG_A:
             rot_encoder_callback(event_mask);
             break;
+        case SW_0:
+            sw0_callback(event_mask);
+            break;
+        case SW_2:
+            sw2_callback(event_mask);
+            break;
     }
 }
-
-// void messageArrived(MQTT::MessageData &md) {
-//     MQTT::Message &message = md.message;
-
-//     printf("Message arrived: qos %d, retained %d, dup %d, packetid %d\n",
-//            message.qos, message.retained, message.dup, message.id);
-//     printf("Payload %s\n", (char *) message.payload);
-// }
 
 
 int main()
@@ -41,9 +39,9 @@ int main()
 
     auto ps_ptr = make_shared<ProgramState>();
     auto mqtt_ptr = Mqtt::create();
-    // multicore_launch_core1(Mqtt::listener);
 
     GarageDoor garage_door(ps_ptr, mqtt_ptr);
+    garage_door.connect_mqtt_client();
 
     // GPIOPin led1(LED_1, -1, false, false);
     // GPIOPin led2(LED_2, -1, false, false);
@@ -123,7 +121,10 @@ int main()
         //     garage_door.calibrate_motor();
         // }
         // garage_door.reset();
-        garage_door.test_mqtt();
+        // garage_door.test_mqtt();
+        garage_door.remote_control();
+        mqtt_ptr->yield(100);
+        tight_loop_contents();
         sleep_ms(100);
     }
 

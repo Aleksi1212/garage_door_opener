@@ -11,13 +11,12 @@ Mqtt::Mqtt() : ipstack(SSID, PW), client(ipstack)
     data.clientID.cstring = (char *)CLIENT_ID;
 
     mqtt_send = make_timeout_time_ms(2000);
-    mqtt_qos = 0;
     msg_count = 0;
 
     tcp_rc = 0;
     mqtt_rc = -1;
 
-    queue_init(&mqtt_msg_queue, MQTT_MSG_SIZE, 10);
+    queue_init(&mqtt_msg_queue, sizeof(T_MQTT_payload), 10);
 }
 
 weak_ptr<Mqtt> Mqtt::instance_ptr;
@@ -43,7 +42,7 @@ void Mqtt::tcp_client_connect()
 }
 void Mqtt::subscirbe(const char *topic)
 {
-    mqtt_rc = client.subscribe(topic, MQTT::QOS2, Mqtt::msg_handler_static);
+    mqtt_rc = client.subscribe(topic, MQTT::QOS0, Mqtt::msg_handler_static);
     if (mqtt_rc != 0) {
         cout << "rc from MQTT subsribe to " << topic << " is: " << mqtt_rc << endl;
         return;
@@ -71,13 +70,23 @@ void Mqtt::connect()
 
 void Mqtt::msg_handler_instance(MQTT::MessageData &md)
 {
-    MQTT::Message &message = md.message;
+    auto &message = md.message;
+    auto &topic = md.topicName;
 
-    char buffer[MQTT_MSG_SIZE];
+    T_MQTT_payload payload{};
 
-    snprintf(buffer, sizeof(buffer), "%.*s", (int)message.payloadlen, (char *)message.payload);
+    if (topic.cstring) {
+        strncpy(payload.topic, topic.cstring, sizeof(payload.topic));
+    } else {
+        size_t len = (topic.lenstring.len < sizeof(payload.topic) - 1)
+                        ? topic.lenstring.len
+                        : sizeof(payload.topic) - 1;
+        memcpy(payload.topic, topic.lenstring.data, len);
+        payload.topic[len] = '\0';
+    }
+    snprintf(payload.message, sizeof(payload.message), "%.*s", (int)message.payloadlen, (char *)message.payload);
 
-    queue_try_add(&mqtt_msg_queue, &buffer);
+    queue_try_add(&mqtt_msg_queue, &payload);
 }
 
 void Mqtt::msg_handler_static(MQTT::MessageData &md)
@@ -87,15 +96,28 @@ void Mqtt::msg_handler_static(MQTT::MessageData &md)
     }
 }
 
-bool Mqtt::try_get_mqtt_msg(char *buffer, size_t buffer_size)
+bool Mqtt::try_get_mqtt_msg(T_MQTT_payload *payload_buff) 
 {
-    client.yield(100);
-
-    char local_buf[MQTT_MSG_SIZE];
-    if (queue_try_remove(&mqtt_msg_queue, &local_buf)) {
-        strncpy(buffer, local_buf, buffer_size);
-        buffer[buffer_size - 1] = '\0';
-        return true;
-    }
-    return false;
+    return queue_try_remove(&mqtt_msg_queue, payload_buff);
 }
+
+int Mqtt::send_message(const char *topic, char *message)
+{
+    if (time_reached(mqtt_send)) {
+        mqtt_send = delayed_by_ms(mqtt_send, 2000);
+
+        MQTT::Message msg{};
+        msg.retained = false;
+        msg.dup = false;
+    
+        snprintf(publish_buf, MQTT_MSG_SIZE, "%s", message);
+        msg.payload = publish_buf;
+        msg.payloadlen = strlen(publish_buf);
+        msg.qos = MQTT::QOS0;
+
+        return client.publish(topic, msg);
+    }
+    return -1;
+}
+
+void Mqtt::yield(unsigned long timeout_ms) { client.yield(timeout_ms); }
