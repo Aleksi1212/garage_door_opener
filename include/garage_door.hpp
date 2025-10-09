@@ -54,6 +54,7 @@ class GarageDoor
 
 
 void sw0_callback(uint32_t event_mask);
+void sw1_callback(uint32_t event_mask);
 void sw2_callback(uint32_t event_mask);
 void rot_encoder_callback(uint32_t event_mask);
 

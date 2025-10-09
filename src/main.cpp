@@ -41,6 +41,7 @@ int main()
     auto mqtt_ptr = Mqtt::create();
 
     GarageDoor garage_door(ps_ptr, mqtt_ptr);
+    // garage_door.reset();
     garage_door.connect_mqtt_client();
 
     // GPIOPin led1(LED_1, -1, false, false);
@@ -109,7 +110,7 @@ int main()
     {
         // cout << "MQTT subscribed to " << command_topic << endl;
 
-        // auto ps = ps_ptr->read();
+        auto ps = ps_ptr->read();
         // cout << "Calibrated: " << (int)ps.calibrated << endl;
         // cout << "Door position: " << (int)ps.door_position << endl;
         // cout << "Is open: " << (int)ps.is_open << endl;
@@ -117,13 +118,18 @@ int main()
         // cout << "Steps up: " << (int)ps.steps_up << endl;
         // cout << "Steps down: " << (int)ps.steps_down << "\n\n" << endl;
 
-        // if (!ps.calibrated) {
-        //     garage_door.calibrate_motor();
-        // }
+        if (!ps.calibrated) {
+            garage_door.calibrate_motor();
+
+        // bool pressed = !gpio_get(SW_0);
+        // gpio_put(LED_1, pressed); 
+        }
+        garage_door.remote_control();
         // garage_door.reset();
         // garage_door.test_mqtt();
-        garage_door.remote_control();
         mqtt_ptr->yield(100);
+        // cout << "test" << endl;
+        // garage_door.calibrate_motor();
         tight_loop_contents();
         sleep_ms(100);
     }

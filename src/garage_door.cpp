@@ -6,8 +6,6 @@
 #include <iostream>
 #include <hardware.hpp>
 #include <array>
-#include <algorithm>
-#include <cctype>
 
 #define STEP_SEQ_COUNT 8
 
@@ -24,6 +22,7 @@ static const uint8_t STEP_SEQUENCE[STEP_SEQ_COUNT][4] = {
 
 static queue_t rot_encoder_queue;
 static queue_t sw0_queue;
+static queue_t sw1_queue;
 static queue_t sw2_queue;
 
 void rot_encoder_callback(uint32_t event_mask)
@@ -45,6 +44,13 @@ void sw0_callback(uint32_t event_mask)
     if ((event_mask & GPIO_IRQ_EDGE_FALL)) {
         uint8_t event = 1;
         queue_try_add(&sw0_queue, &event);
+    }
+}
+void sw1_callback(uint32_t event_mask)
+{
+    if ((event_mask & GPIO_IRQ_EDGE_FALL)) {
+        uint8_t event = 1;
+        queue_try_add(&sw1_queue, &event);
     }
 }
 void sw2_callback(uint32_t event_mask)
@@ -94,9 +100,12 @@ GarageDoor::GarageDoor(
     rot_b(ROT_SIG_B, -1, true, false, false)
 {
     queue_init(&sw0_queue, sizeof(uint8_t), 10);
+    queue_init(&sw1_queue, sizeof(uint8_t), 10);
     queue_init(&sw2_queue, sizeof(uint8_t), 10);
 
     queue_init(&rot_encoder_queue, sizeof(uint8_t), 10);
+
+    led1.write(true);
 }
 
 void GarageDoor::half_step_motor(bool reverse)
@@ -117,9 +126,15 @@ void GarageDoor::calibrate_motor()
 {
     auto ps = program_state->read();
 
-    led1.write(true);
+    uint8_t event_sw0;
+    uint8_t event_sw2;
+    bool sw0_pressed = false;
+    bool sw2_pressed = false;
 
-    if (ps.is_running || (sw0() && sw2())) {
+    if (queue_try_remove(&sw0_queue, &event_sw0)) sw0_pressed = true;
+    if (queue_try_remove(&sw2_queue, &event_sw2)) sw2_pressed = true;
+
+    if (sw0_pressed && sw2_pressed) {
         ps.is_running = 1;
         program_state->write(ps);
 
@@ -163,7 +178,6 @@ void GarageDoor::connect_mqtt_client()
 
 void GarageDoor::remote_control()
 {
-    std::cout << (*mqtt_client)() << std::endl;
     if (!(*mqtt_client)()) {
         std::cout << "Client not connected :(" << std::endl;
         return;
@@ -235,9 +249,9 @@ void GarageDoor::remote_control()
 */
 void GarageDoor::reset()
 {
-    if (sw0() && sw1() && sw2()) {
-        program_state->reset_eeprom();
-    }
+    // if (sw0() && sw1() && sw2()) {
+    program_state->reset_eeprom();
+    // }
 }
 
 

@@ -120,4 +120,4 @@ int Mqtt::send_message(const char *topic, char *message)
     return -1;
 }
 
-void Mqtt::yield(unsigned long timeout_ms) { client.yield(timeout_ms); }
+void Mqtt::yield(unsigned long timeout_ms) { if (client.isConnected()) client.yield(timeout_ms); }
