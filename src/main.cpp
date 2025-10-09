@@ -30,7 +30,6 @@ void irq_callback(uint gpio, uint32_t event_mask)
     }
 }
 
-
 int main()
 {
     stdio_init_all();
@@ -44,92 +43,27 @@ int main()
     // garage_door.reset();
     garage_door.connect_mqtt_client();
 
-    // GPIOPin led1(LED_1, -1, false, false);
-    // GPIOPin led2(LED_2, -1, false, false);
-    // GPIOPin led3(LED_3, -1, false, false);
-
-    // led1.write(true);
-    // led2.write(true);
-    // led3.write(true);
-
-
-    // const char *command_topic = "garage/door/command";
-    // const char *response_topic = "garage/door/response";
-    // const char *status_topic = "garage/door/status";
-
-    // IPStack ipstack(SSID, PW);
-    // auto client = MQTT::Client<IPStack, Countdown>(ipstack);
-
-    // int rc = ipstack.connect(HOSTNAME, PORT);
-    // if (rc != 1) {
-    //     cout << "rc from TCP connect is " << rc << endl;
-    // }
-
-    // led1.write(true);
-    // led2.write(false);
-    // led3.write(false);
-
-    // cout << "MQTT connecting..." << endl;
-    // MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
-    // data.MQTTVersion = 3;
-    // data.clientID.cstring = (char *)"PicoW-sample";
-
-    // rc = client.connect(data);
-    // if (rc != 0) {
-    //     cout << "rc from MQTT connect is " << rc << endl;
-    //     while (true) {
-    //         tight_loop_contents();
-
-    //         led1.write(true);
-    //         led2.write(true);
-    //         led3.write(true);
-    //         sleep_ms(500);
-    //         led1.write(false);
-    //         led2.write(false);
-    //         led3.write(false);
-    //         sleep_ms(500);
-
-    //     }
-    // }
-    // cout << "MQTT connected" << endl;
-    // led1.write(false);
-    // led2.write(true);
-    // led3.write(false);
-
-    // rc = client.subscribe(command_topic, MQTT::QOS2, messageArrived);
-    // if (rc != 0) {
-    //     cout << "rc from MQTT subscribe is " << rc << endl;
-    // }
-    // led1.write(false);
-    // led2.write(false);
-    // led3.write(true);
-    // cout << "MQTT subscribed to " << command_topic << endl;
-
-
     while (true)
     {
-        // cout << "MQTT subscribed to " << command_topic << endl;
-
         auto ps = ps_ptr->read();
-        // cout << "Calibrated: " << (int)ps.calibrated << endl;
-        // cout << "Door position: " << (int)ps.door_position << endl;
-        // cout << "Is open: " << (int)ps.is_open << endl;
-        // cout << "Is running: " << (int)ps.is_running << endl;
-        // cout << "Steps up: " << (int)ps.steps_up << endl;
-        // cout << "Steps down: " << (int)ps.steps_down << "\n\n" << endl;
 
         if (!ps.calibrated) {
             garage_door.calibrate_motor();
-
-        // bool pressed = !gpio_get(SW_0);
-        // gpio_put(LED_1, pressed); 
+        } else {
+            // Local physical control (e.g., button press)
+            garage_door.local_control();
         }
+
+        // Handle remote MQTT control (open/close via network)
         garage_door.remote_control();
+
+        // Optional: keep MQTT alive
+        mqtt_ptr->yield(100);
+
+        // Optional: EEPROM reset/testing (comment out if not needed)
         // garage_door.reset();
         // garage_door.test_mqtt();
-        mqtt_ptr->yield(100);
-        // cout << "test" << endl;
-        // garage_door.calibrate_motor();
+
         tight_loop_contents();
         sleep_ms(100);
     }

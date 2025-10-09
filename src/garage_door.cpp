@@ -10,14 +10,14 @@
 #define STEP_SEQ_COUNT 8
 
 static const uint8_t STEP_SEQUENCE[STEP_SEQ_COUNT][4] = {
-	{1, 0, 0, 0},  // Step 1
-	{1, 1, 0, 0},  // Step 2
-	{0, 1, 0, 0},  // Step 3
-	{0, 1, 1, 0},  // Step 4
-	{0, 0, 1, 0},  // Step 5
-	{0, 0, 1, 1},  // Step 6
-	{0, 0, 0, 1},  // Step 7
-	{1, 0, 0, 1}   // Step 8
+    {1, 0, 0, 0},  // Step 1
+    {1, 1, 0, 0},  // Step 2
+    {0, 1, 0, 0},  // Step 3
+    {0, 1, 1, 0},  // Step 4
+    {0, 0, 1, 0},  // Step 5
+    {0, 0, 1, 1},  // Step 6
+    {0, 0, 0, 1},  // Step 7
+    {1, 0, 0, 1}   // Step 8
 };
 
 static queue_t rot_encoder_queue;
@@ -176,6 +176,53 @@ void GarageDoor::connect_mqtt_client()
     }
 }
 
+void GarageDoor::local_control()
+{
+    T_ProgramState ps = program_state->read();
+    ps.is_running = 0;
+    int steps_to_run = 0;
+    int door_position = ps.door_position;
+
+    if (ps.is_running == 0 && sw1()) {
+        ps.is_running = 1;
+        program_state->write(ps);
+
+        if (ps.is_open == 0) {
+            for (int i = 0; i < ((ps.steps_down + ps.steps_up) / 2) - ps.door_position; ++i) {
+                if (sw1()) {
+                    ps.is_open = 1;
+                    ps.is_running = 0;
+                    ps.door_position = door_position;
+                    program_state->write(ps);
+                    return;
+                }
+                half_step_motor(true);
+                door_position++;
+            }
+            ps.is_running = 0;
+            ps.is_open = 1;
+            ps.door_position = door_position;
+            program_state->write(ps);
+        } else {
+            for (int i = 0; i < ps.door_position; ++i) {
+                if (sw1()) {
+                    ps.is_open = 0;
+                    ps.is_running = 0;
+                    ps.door_position = door_position;
+                    program_state->write(ps);
+                    return;
+                }
+                half_step_motor(false);
+                door_position--;
+            }
+            ps.is_running = 0;
+            ps.is_open = 0;
+            ps.door_position = door_position;
+            program_state->write(ps);
+        }
+    }
+}
+
 void GarageDoor::remote_control()
 {
     if (!(*mqtt_client)()) {
@@ -200,47 +247,25 @@ void GarageDoor::remote_control()
             case 1:
                 std::cout << "door opening..." << std::endl;
                 rc = mqtt_client->send_message(RESPONSE_TOPIC, "door opened");
-                if (rc != 0) {
-                    std::cout << "failed " << rc << std::endl;
-                } else {
-                    std::cout << "success" << std::endl;
-
-                }
                 break;
             case 2:
                 std::cout << "door closing..." << std::endl;
                 rc = mqtt_client->send_message(RESPONSE_TOPIC, "door closed");
-                if (rc != 0) {
-                    std::cout << "failed " << rc << std::endl;
-                } else {
-                    std::cout << "success" << std::endl;
-
-                }
-
                 break;
             case 3:
                 std::cout << "door stopping..." << std::endl;
                 rc = mqtt_client->send_message(RESPONSE_TOPIC, "door stopped");
-                if (rc != 0) {
-                    std::cout << "failed " << rc << std::endl;
-                } else {
-                    std::cout << "success" << std::endl;
-
-                }
-
                 break;
             default:
                 std::cout << "invalid command" << std::endl;
                 rc = mqtt_client->send_message(RESPONSE_TOPIC, "invalid command");
-                if (rc != 0) {
-                    std::cout << "failed " << rc << std::endl;
-                } else {
-                    std::cout << "success" << std::endl;
-
-                }
-
                 break;
         }
+
+        if (rc != 0)
+            std::cout << "failed " << rc << std::endl;
+        else
+            std::cout << "success" << std::endl;
     }
 }
 
@@ -249,11 +274,8 @@ void GarageDoor::remote_control()
 */
 void GarageDoor::reset()
 {
-    // if (sw0() && sw1() && sw2()) {
     program_state->reset_eeprom();
-    // }
 }
-
 
 void GarageDoor::test_mqtt()
 {
