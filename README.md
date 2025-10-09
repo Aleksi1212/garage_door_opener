@@ -19,6 +19,14 @@ git submodule update --init --recursive
 
 #endif
 ```
+
+<b>Run mqtt server</b>
+Copy your mosquitto.conf into config/mosquitto.conf and run:
+```
+/* AS ADMIN */
+docker compose up -d
+```
+
 <b>Build and flash<b>
 ```
 make
