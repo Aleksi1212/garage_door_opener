@@ -42,6 +42,12 @@ int main()
     GarageDoor garage_door(ps_ptr, mqtt_ptr);
     garage_door.connect_mqtt_client();
 
+    GPIOPin led1(LED_1, -1, false, false),
+    led2(LED_2, -1, false, false),
+    led3(LED_3, -1, false, false);
+
+    absolute_time_t starttime = get_absolute_time();
+
     while (true)
     {
         auto ps = ps_ptr->read();
@@ -53,6 +59,20 @@ int main()
         cout << "Steps down: " << (int)ps.steps_down << "\n\n" << endl;
 
         if (!ps.calibrated) {
+            uint64_t elapsed = absolute_time_diff_us(starttime, get_absolute_time());
+
+            if ((elapsed / 300000) % 2 == 0) { // even number -> ON
+                led1(true);
+                led2(true);
+                led3(true);
+            }
+
+            else {
+                led1(false);
+                led2(false);
+                led3(false);
+            }
+
             garage_door.calibrate_motor();
         } else {
             garage_door.local_control();
