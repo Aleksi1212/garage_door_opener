@@ -30,6 +30,7 @@ private:
 
     GPIOPin rot_a;
     GPIOPin rot_b;
+    GPIOPin rot_sw;
 
     uint16_t steps_up = 0;
     uint16_t steps_down = 0;

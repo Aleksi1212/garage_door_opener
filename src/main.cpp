@@ -40,29 +40,27 @@ int main()
     auto mqtt_ptr = Mqtt::create();
 
     GarageDoor garage_door(ps_ptr, mqtt_ptr);
-    // garage_door.reset();
     garage_door.connect_mqtt_client();
 
     while (true)
     {
         auto ps = ps_ptr->read();
+        cout << "Calibrated: " << (int)ps.calibrated << endl;
+        cout << "Door position: " << (int)ps.door_position << endl;
+        cout << "Is open: " << (int)ps.is_open << endl;
+        cout << "Is running: " << (int)ps.is_running << endl;
+        cout << "Steps up: " << (int)ps.steps_up << endl;
+        cout << "Steps down: " << (int)ps.steps_down << "\n\n" << endl;
 
         if (!ps.calibrated) {
             garage_door.calibrate_motor();
         } else {
-            // Local physical control (e.g., button press)
             garage_door.local_control();
         }
 
-        // Handle remote MQTT control (open/close via network)
-        garage_door.remote_control();
+        garage_door.reset();
 
-        // Optional: keep MQTT alive
         mqtt_ptr->yield(100);
-
-        // Optional: EEPROM reset/testing (comment out if not needed)
-        // garage_door.reset();
-        // garage_door.test_mqtt();
 
         tight_loop_contents();
         sleep_ms(100);

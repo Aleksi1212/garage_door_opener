@@ -19,6 +19,7 @@
 
 #define ROT_SIG_A 27
 #define ROT_SIG_B 28
+#define ROT_SW 12
 
 #define EEPROM_ADDR 0x50
 #define EEPROM_PORT i2c0

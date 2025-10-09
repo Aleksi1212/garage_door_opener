@@ -97,7 +97,8 @@ GarageDoor::GarageDoor(
     lim_sw2(LIMIT_SW_2, -1, true, true, true),
 
     rot_a(ROT_SIG_A, -1, true, false, false, true, GPIO_IRQ_EDGE_RISE),
-    rot_b(ROT_SIG_B, -1, true, false, false)
+    rot_b(ROT_SIG_B, -1, true, false, false),
+    rot_sw(ROT_SW, -1, true, true, true)
 {
     queue_init(&sw0_queue, sizeof(uint8_t), 10);
     queue_init(&sw1_queue, sizeof(uint8_t), 10);
@@ -178,19 +179,40 @@ void GarageDoor::connect_mqtt_client()
 
 void GarageDoor::local_control()
 {
-    T_ProgramState ps = program_state->read();
-    ps.is_running = 0;
-    int steps_to_run = 0;
+    auto ps = program_state->read();
     int door_position = ps.door_position;
 
-    if (ps.is_running == 0 && sw1()) {
+    // offset is power off during running
+    if (ps.is_running && sw1())
+    {
+        if (ps.is_open) {
+            ps.is_open = 0;
+            program_state->write(ps);
+
+            while(!lim_sw1()) half_step_motor(false);
+            ps.door_position = 0;
+        } else {
+            ps.is_open = 1;
+            program_state->write(ps);
+
+            while(!lim_sw2()) half_step_motor(true);
+            ps.door_position = ps.steps_down;
+        }
+
+        ps.is_running = 0;
+        program_state->write(ps);
+    }
+    else if (ps.is_running == 0 && sw1())
+    {
         ps.is_running = 1;
         program_state->write(ps);
 
         if (ps.is_open == 0) {
+            ps.is_open = 1;
+            program_state->write(ps);
+
             for (int i = 0; i < ((ps.steps_down + ps.steps_up) / 2) - ps.door_position; ++i) {
                 if (sw1()) {
-                    ps.is_open = 1;
                     ps.is_running = 0;
                     ps.door_position = door_position;
                     program_state->write(ps);
@@ -200,13 +222,14 @@ void GarageDoor::local_control()
                 door_position++;
             }
             ps.is_running = 0;
-            ps.is_open = 1;
             ps.door_position = door_position;
             program_state->write(ps);
         } else {
+            ps.is_open = 0;
+            program_state->write(ps);
+            
             for (int i = 0; i < ps.door_position; ++i) {
-                if (sw1()) {
-                    ps.is_open = 0;
+                 if (sw1()) {
                     ps.is_running = 0;
                     ps.door_position = door_position;
                     program_state->write(ps);
@@ -216,7 +239,6 @@ void GarageDoor::local_control()
                 door_position--;
             }
             ps.is_running = 0;
-            ps.is_open = 0;
             ps.door_position = door_position;
             program_state->write(ps);
         }
@@ -274,7 +296,8 @@ void GarageDoor::remote_control()
 */
 void GarageDoor::reset()
 {
-    program_state->reset_eeprom();
+    if (rot_sw())
+        program_state->reset_eeprom();
 }
 
 void GarageDoor::test_mqtt()
