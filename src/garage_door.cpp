@@ -132,9 +132,8 @@ void GarageDoor::calibrate_motor()
         uint8_t rot = 0;
         while(queue_try_remove(&rot_encoder_queue, &rot));
 
-        while(!lim_sw1())  { std::cout << "this1" << std::endl; half_step_motor(); }
+        while(!lim_sw1())  half_step_motor();
         while(!lim_sw2()) {
-            std::cout << "this2" << std::endl; 
             if (queue_try_remove(&rot_encoder_queue, &rot)) {
                 ps.is_open = 1;
             }
@@ -142,7 +141,6 @@ void GarageDoor::calibrate_motor()
             ps.steps_down++;
         }
         while(!lim_sw1()) {
-            std::cout << "this3" << std::endl; 
             if (queue_try_remove(&rot_encoder_queue, &rot)) {
                 ps.is_open = 0;
             }
