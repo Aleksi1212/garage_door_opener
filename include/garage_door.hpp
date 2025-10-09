@@ -40,6 +40,7 @@ class GarageDoor
         GarageDoor(std::shared_ptr<ProgramState> state);
         void calibrate_motor();
         void reset();
+        void local_control();
 };
 
 void rot_encoder_callback(uint32_t event_mask);

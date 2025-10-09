@@ -37,22 +37,24 @@ struct T_ProgramState
  * 0x7FEE  ~is_open              (1 byte)
  * ------------------------------------------------------------------ */
 
-#define EE_ADDR_IS_OPEN          0x7FEF  // 1 byte
+#define EE_ADDR_STEPS_UP           0x7FC0  // 2 bytes
+#define EE_ADDR_STEPS_UP_INV       0x7FC2  // 2 bytes
 
-#define EE_ADDR_CALIBRATED       0x7FF1  // 1 byte
+#define EE_ADDR_STEPS_DOWN         0x7FC4  // 2 bytes
+#define EE_ADDR_STEPS_DOWN_INV     0x7FC6  // 2 bytes
 
-#define EE_ADDR_IS_RUNNING       0x7FF3  // 1 byte
+#define EE_ADDR_DOOR_POSITION      0x7FC8  // 2 bytes
+#define EE_ADDR_DOOR_POSITION_INV  0x7FCA  // 2 bytes
 
+#define EE_ADDR_IS_RUNNING         0x7FCC  // 1 byte
+// its inverse is always +1
+// #define EE_ADDR_IS_RUNNING_INV   0x7FCD
 
-#define EE_ADDR_DOOR_POSITION    0x7FF6  // 2 bytes
-#define EE_ADDR_DOOR_POSITION_INV 0x7FF4 // 2 bytes
+#define EE_ADDR_CALIBRATED         0x7FCE  // 1 byte
+// #define EE_ADDR_CALIBRATED_INV   0x7FCF
 
-#define EE_ADDR_STEPS_DOWN       0x7FFA  // 2 bytes
-#define EE_ADDR_STEPS_DOWN_INV   0x7FF8  // 2 bytes
-
-#define EE_ADDR_STEPS_UP         0x7FFE  // 2 bytes
-#define EE_ADDR_STEPS_UP_INV     0x7FFC  // 2 bytes
-
+#define EE_ADDR_IS_OPEN            0x7FD0  // 1 byte
+// #define EE_ADDR_IS_OPEN_INV      0x7FD1
 
 
 

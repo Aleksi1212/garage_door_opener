@@ -20,7 +20,7 @@ ProgramState::ProgramState() : Eeprom(EEPROM_PORT, EEPROM_BAUD_RATE)
 
 void ProgramState::write_to_eeprom()
 {
-    std::cout << "writing..." << std::endl;
+
     
     Eeprom::write_u16(EE_ADDR_STEPS_UP_INV, ~state.steps_up);
     Eeprom::write_u16(EE_ADDR_STEPS_UP, state.steps_up);
@@ -40,13 +40,13 @@ void ProgramState::write_to_eeprom()
     Eeprom::write_byte(EE_ADDR_IS_OPEN + 1, ~state.is_open);
     Eeprom::write_byte(EE_ADDR_IS_OPEN, state.is_open);
 
-    std::cout << "written." << std::endl;
+
     
 }
 
 void ProgramState::load_from_eeprom()
 {
-    std::cout << "loading..." << std::endl;
+
 
     uint16_t steps_up = Eeprom::read_u16(EE_ADDR_STEPS_UP);
     uint16_t steps_up_inv = Eeprom::read_u16(EE_ADDR_STEPS_UP_INV);
@@ -94,7 +94,7 @@ void ProgramState::load_from_eeprom()
     if ((uint8_t)(is_open ^ is_open_inv) == 0xFF) {
         state.is_open = is_open;
     }
-    std::cout << "loaded." << std::endl;
+
 }
 
 void ProgramState::write(const T_ProgramState& new_state)
