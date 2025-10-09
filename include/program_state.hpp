@@ -12,6 +12,7 @@ struct T_ProgramState
     uint8_t is_running; // door currently opening / closing 0 = no, 1 = yes
     uint8_t calibrated; // motor calibrated
     uint8_t is_open; // door 1 = open, 0 = closed
+    uint8_t is_door_stuck; // Door stuck!
 };
 
 /* --------------------------------------------------------------------

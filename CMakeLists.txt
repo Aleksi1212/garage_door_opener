@@ -33,6 +33,7 @@ file(GLOB MQTT_SOURCES "paho.mqtt.embedded-c/MQTTPacket/src/*.c")
 add_executable(${PROJECT_NAME}
   ${SRC_FILES}
   ${MQTT_SOURCES}
+        include/network_info.h
 )
 
 

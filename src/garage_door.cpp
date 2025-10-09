@@ -89,9 +89,6 @@ GarageDoor::GarageDoor(
     sw1(SW_1, -1, true, true, true, true, GPIO_IRQ_EDGE_FALL),
     sw2(SW_2, -1, true, true, true, true, GPIO_IRQ_EDGE_FALL),
 
-    led1(LED_1, -1, false, false),
-    led2(LED_2, -1, false, false),
-    led3(LED_3, -1, false, false),
 
     lim_sw1(LIMIT_SW_1, -1, true, true, true),
     lim_sw2(LIMIT_SW_2, -1, true, true, true),
@@ -106,7 +103,6 @@ GarageDoor::GarageDoor(
 
     queue_init(&rot_encoder_queue, sizeof(uint8_t), 10);
 
-    led1.write(true);
 }
 
 void GarageDoor::half_step_motor(bool reverse)
@@ -164,8 +160,6 @@ void GarageDoor::calibrate_motor()
 
         program_state->write(ps);
 
-        led1.write(false);
-        led2.write(true);
     }
 }
 
@@ -177,10 +171,16 @@ void GarageDoor::connect_mqtt_client()
     }
 }
 
+uint64_t millis_now() {
+    return time_us_64() / 1000; // convert to milliseconds
+}
+
 void GarageDoor::local_control()
 {
     auto ps = program_state->read();
     int door_position = ps.door_position;
+    uint8_t rot;
+    uint64_t lastEncoderTime = millis_now();
 
     // offset is power off during running
     if (ps.is_running && sw1())
@@ -189,7 +189,17 @@ void GarageDoor::local_control()
             ps.is_open = 0;
             program_state->write(ps);
 
-            while(!lim_sw1()) half_step_motor(false);
+            while(!lim_sw1()) {
+                half_step_motor(false);
+                if (queue_try_remove(&rot_encoder_queue, &rot)) {
+                    lastEncoderTime = millis_now();
+                }
+                if (millis_now() - lastEncoderTime > 1000) {
+                    program_state->reset_eeprom();
+                    report();
+                    return;
+                }
+            }
             ps.door_position = 0;
         } else {
             ps.is_open = 1;
@@ -219,6 +229,14 @@ void GarageDoor::local_control()
                     return;
                 }
                 half_step_motor(true);
+                if (queue_try_remove(&rot_encoder_queue, &rot)) {
+                    lastEncoderTime = millis_now();
+                }
+                if (millis_now() - lastEncoderTime > 1000) {
+                    program_state->reset_eeprom();
+                    report();
+                    return;
+                }
                 door_position++;
             }
             ps.is_running = 0;
@@ -227,15 +245,23 @@ void GarageDoor::local_control()
         } else {
             ps.is_open = 0;
             program_state->write(ps);
-            
+
             for (int i = 0; i < ps.door_position; ++i) {
-                 if (sw1()) {
+                if (sw1()) {
                     ps.is_running = 0;
                     ps.door_position = door_position;
                     program_state->write(ps);
                     return;
                 }
                 half_step_motor(false);
+                if (queue_try_remove(&rot_encoder_queue, &rot)) {
+                    lastEncoderTime = millis_now();
+                }
+                if (millis_now() - lastEncoderTime > 1000) {
+                    program_state->reset_eeprom();
+                    report();
+                    return;
+                }
                 door_position--;
             }
             ps.is_running = 0;
