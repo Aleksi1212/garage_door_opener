@@ -1,0 +1,12 @@
+version: "3.8"
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto
+    container_name: mosquitto
+    ports:
+      - "1884:1884"
+      - "9001:9001"
+    volumes:
+      - ./config:/mosquitto/config
+    restart: unless-stopped
