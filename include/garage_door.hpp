@@ -39,6 +39,10 @@ private:
 
     void half_step_motor(bool reverse = false);
 
+    bool get_remote_command(char *cmd);
+    bool check_remote_stop();
+    void handle_door_stop(T_ProgramState& ps, bool remote_cmd, int door_position);
+
 public:
     GarageDoor(
         std::shared_ptr<ProgramState> state,

@@ -1,6 +1,7 @@
 #include <iostream>
 #include <mqtt.hpp>
 #include <network_info.h>
+#include <hardware.hpp>
 
 using namespace std;
 
@@ -103,21 +104,21 @@ bool Mqtt::try_get_mqtt_msg(T_MQTT_payload *payload_buff)
 
 int Mqtt::send_message(const char *topic, char *message)
 {
-    if (time_reached(mqtt_send)) {
-        mqtt_send = delayed_by_ms(mqtt_send, 2000);
+    // if (time_reached(mqtt_send)) {
+        // mqtt_send = delayed_by_ms(mqtt_send, 2000);
 
-        MQTT::Message msg{};
-        msg.retained = false;
-        msg.dup = false;
-    
-        snprintf(publish_buf, MQTT_MSG_SIZE, "%s", message);
-        msg.payload = publish_buf;
-        msg.payloadlen = strlen(publish_buf);
-        msg.qos = MQTT::QOS0;
+    MQTT::Message msg{};
+    msg.retained = false;
+    msg.dup = false;
 
-        return client.publish(topic, msg);
-    }
-    return -1;
+    snprintf(publish_buf, MQTT_MSG_SIZE, "%s", message);
+    msg.payload = publish_buf;
+    msg.payloadlen = strlen(publish_buf);
+    msg.qos = MQTT::QOS0;
+
+    return client.publish(topic, msg);
+    // }
+    // return -1;
 }
 
-void Mqtt::yield(unsigned long timeout_ms) { if (client.isConnected()) client.yield(timeout_ms); }
+void Mqtt::yield(unsigned long timeout_ms) { /*if (client.isConnected()) std::cout<< "yield" << std::endl;*/ client.yield(timeout_ms); }

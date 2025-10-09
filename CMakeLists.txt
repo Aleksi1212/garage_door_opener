@@ -56,6 +56,7 @@ target_link_libraries(${PROJECT_NAME}
     hardware_gpio
     hardware_i2c
     pico_cyw43_arch_lwip_poll
+    pico_multicore
     # additional Pico SDK libraries
 )
 

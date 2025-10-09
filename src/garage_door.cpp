@@ -35,7 +35,7 @@ void rot_encoder_callback(uint32_t event_mask)
         } else {
             rot_direction = 0;
             queue_try_add(&rot_encoder_queue, &rot_direction);
-        }   
+        }
     }
 }
 
@@ -142,8 +142,9 @@ void GarageDoor::calibrate_motor()
         uint8_t rot = 0;
         while(queue_try_remove(&rot_encoder_queue, &rot));
 
-        while(!lim_sw1()) half_step_motor();
+        while(!lim_sw1())  { std::cout << "this1" << std::endl; half_step_motor(); }
         while(!lim_sw2()) {
+            std::cout << "this2" << std::endl; 
             if (queue_try_remove(&rot_encoder_queue, &rot)) {
                 ps.is_open = 1;
             }
@@ -151,10 +152,11 @@ void GarageDoor::calibrate_motor()
             ps.steps_down++;
         }
         while(!lim_sw1()) {
+            std::cout << "this3" << std::endl; 
             if (queue_try_remove(&rot_encoder_queue, &rot)) {
                 ps.is_open = 0;
             }
-            half_step_motor();
+            half_step_motor(false);
             ps.steps_up++;
         }
 
@@ -177,13 +179,31 @@ void GarageDoor::connect_mqtt_client()
     }
 }
 
+void GarageDoor::handle_door_stop(T_ProgramState& ps, bool remote_cmd, int door_position)
+{
+    if (remote_cmd) {
+        mqtt_client->send_message(RESPONSE_TOPIC, "Stopping door...");
+    }
+    ps.is_running = 0;
+    ps.door_position = door_position;
+    program_state->write(ps);
+
+    if (remote_cmd) {
+        mqtt_client->send_message(RESPONSE_TOPIC, "Door stopped.");
+    }
+    return;
+}
+
 void GarageDoor::local_control()
 {
     auto ps = program_state->read();
     int door_position = ps.door_position;
+    bool run_cmd = false,
+        stop_cmd = false;
+
 
     // offset is power off during running
-    if (ps.is_running && sw1())
+    if (ps.is_running && (sw1() || (run_cmd = get_remote_command("RUN"))))
     {
         if (ps.is_open) {
             ps.is_open = 0;
@@ -202,7 +222,7 @@ void GarageDoor::local_control()
         ps.is_running = 0;
         program_state->write(ps);
     }
-    else if (ps.is_running == 0 && sw1())
+    else if (ps.is_running == 0 && (sw1() || (run_cmd = get_remote_command("RUN"))))
     {
         ps.is_running = 1;
         program_state->write(ps);
@@ -211,38 +231,130 @@ void GarageDoor::local_control()
             ps.is_open = 1;
             program_state->write(ps);
 
+            // if (remote_cmd) {
+            //     mqtt_client->send_message(RESPONSE_TOPIC, "Opening door...");
+            // }
+
             for (int i = 0; i < ((ps.steps_down + ps.steps_up) / 2) - ps.door_position; ++i) {
-                if (sw1()) {
+                mqtt_client->yield(1);
+                half_step_motor(true);
+
+                // while (queue_try_remove(&rot_encoder_queue, &rot)) {
+
+                // }
+
+                if (sw1() || (stop_cmd = get_remote_command("STOP"))) {
+
+                    // if (remote_cmd) {
+                    //     mqtt_client->send_message(RESPONSE_TOPIC, "Stopping door...");
+                    // }
                     ps.is_running = 0;
                     ps.door_position = door_position;
                     program_state->write(ps);
+
+                    if (stop_cmd) {
+                        mqtt_client->send_message(RESPONSE_TOPIC, "Door stopped.");
+                    }
                     return;
                 }
-                half_step_motor(true);
+
                 door_position++;
+
             }
             ps.is_running = 0;
             ps.door_position = door_position;
             program_state->write(ps);
+
+            if (run_cmd) {
+                mqtt_client->send_message(RESPONSE_TOPIC, "Door opened.");
+            }
         } else {
             ps.is_open = 0;
             program_state->write(ps);
-            
+
+            // if (remote_cmd) {
+            //     mqtt_client->send_message(RESPONSE_TOPIC, "Closing door...");
+            // }
+
             for (int i = 0; i < ps.door_position; ++i) {
-                 if (sw1()) {
+                mqtt_client->yield(1);
+                half_step_motor(false);
+
+                if (sw1() || (stop_cmd = get_remote_command("STOP"))) {
+                    // if (remote_cmd) {
+                    //     mqtt_client->send_message(RESPONSE_TOPIC, "Stopping door...");
+                    // }
                     ps.is_running = 0;
                     ps.door_position = door_position;
                     program_state->write(ps);
+
+                    if (stop_cmd) {
+                        mqtt_client->send_message(RESPONSE_TOPIC, "Door stopped.");
+                    }
+                    // return handle_door_stop(ps, remote_cmd, door_position);
                     return;
                 }
-                half_step_motor(false);
+
                 door_position--;
+
             }
             ps.is_running = 0;
             ps.door_position = door_position;
             program_state->write(ps);
+
+            if (run_cmd) {
+                mqtt_client->send_message(RESPONSE_TOPIC, "Door closed...");
+            }
         }
     }
+    mqtt_client->yield(50);
+}
+
+bool GarageDoor::check_remote_stop()
+{
+    static absolute_time_t last_poll = get_absolute_time();
+
+    // Poll MQTT every 25–50 ms
+    // if (absolute_time_diff_us(last_poll, get_absolute_time()) > 25000) {
+    //     mqtt_client->yield(1);
+    //     last_poll = get_absolute_time();
+    // }
+
+    // Drain all messages in the queue
+    T_MQTT_payload payload{};
+    while (mqtt_client->try_get_mqtt_msg(&payload)) {
+        to_upper(payload.message);
+        if (strcmp(payload.message, "STOP") == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool GarageDoor::get_remote_command(char *cmd)
+{
+    if (!(*mqtt_client)()) {
+        std::cout << "Client not connected :(" << std::endl;
+        return false;
+    }
+
+    // static absolute_time_t last_poll = get_absolute_time();
+
+    // Poll MQTT every 25–50 ms
+    // if (absolute_time_diff_us(last_poll, get_absolute_time()) > 25000) {
+    //     mqtt_client->yield(5);
+    //     last_poll = get_absolute_time();
+    // }
+
+    // Drain all messages in the queue
+    T_MQTT_payload payload{};
+    if (mqtt_client->try_get_mqtt_msg(&payload)) {
+        to_upper(payload.message);
+        if (strcmp(payload.message, cmd) == 0) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void GarageDoor::remote_control()
@@ -267,19 +379,18 @@ void GarageDoor::remote_control()
         int rc = -1;
         switch (command) {
             case 1:
-                std::cout << "door opening..." << std::endl;
-                rc = mqtt_client->send_message(RESPONSE_TOPIC, "door opened");
+                rc = mqtt_client->send_message(RESPONSE_TOPIC, "Opening door...");
+                if (rc == 0) {
+
+                }
                 break;
             case 2:
-                std::cout << "door closing..." << std::endl;
-                rc = mqtt_client->send_message(RESPONSE_TOPIC, "door closed");
+                rc = mqtt_client->send_message(RESPONSE_TOPIC, "Closing door...");
                 break;
             case 3:
-                std::cout << "door stopping..." << std::endl;
-                rc = mqtt_client->send_message(RESPONSE_TOPIC, "door stopped");
+                rc = mqtt_client->send_message(RESPONSE_TOPIC, "Stopping door...");
                 break;
             default:
-                std::cout << "invalid command" << std::endl;
                 rc = mqtt_client->send_message(RESPONSE_TOPIC, "invalid command");
                 break;
         }
