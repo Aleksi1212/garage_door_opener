@@ -5,9 +5,8 @@
 #include <gpio.hpp>
 #include <program_state.hpp>
 #include <mqtt.hpp>
-#include <Error_state_handling.hpp>
 
-class GarageDoor : private error_status
+class GarageDoor
 {
 private:
     std::shared_ptr<ProgramState> program_state;
@@ -37,7 +36,7 @@ private:
     void half_step_motor(bool reverse = false);
 
     bool get_remote_command(char *cmd);
-    bool check_remote_stop();
+    // bool check_remote_stop();
     void handle_door_stop(T_ProgramState& ps, bool remote_cmd, int door_position);
 
 public:
@@ -48,12 +47,12 @@ public:
 
     void calibrate_motor();
     void connect_mqtt_client();
-    void remote_control();
-    void local_control();
+    // void remote_control();
+    void control_motor();
 
     /* TESTING */
     void reset();
-    void test_mqtt();
+    // void test_mqtt();
 };
 
 void sw0_callback(uint32_t event_mask);

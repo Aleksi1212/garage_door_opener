@@ -182,7 +182,7 @@ uint64_t millis_now() {
     return time_us_64() / 1000; // convert to milliseconds
 }
 
-void GarageDoor::local_control()
+void GarageDoor::control_motor()
 {
     auto ps = program_state->read();
     int door_position = ps.door_position;
@@ -203,7 +203,6 @@ void GarageDoor::local_control()
                 }
                 if (millis_now() - lastEncoderTime > 1000) {
                     program_state->reset_eeprom();
-                    report();
                     return;
                 }
             }
@@ -242,7 +241,6 @@ void GarageDoor::local_control()
                 }
                 if (millis_now() - lastEncoderTime > 1000) {
                     program_state->reset_eeprom();
-                    report();
                     return;
                 }
 
@@ -274,7 +272,6 @@ void GarageDoor::local_control()
                 }
                 if (millis_now() - lastEncoderTime > 1000) {
                     program_state->reset_eeprom();
-                    report();
                     return;
                 }
 
@@ -293,27 +290,6 @@ void GarageDoor::local_control()
     mqtt_client->yield(50);
 }
 
-bool GarageDoor::check_remote_stop()
-{
-    static absolute_time_t last_poll = get_absolute_time();
-
-    // Poll MQTT every 25–50 ms
-    // if (absolute_time_diff_us(last_poll, get_absolute_time()) > 25000) {
-    //     mqtt_client->yield(1);
-    //     last_poll = get_absolute_time();
-    // }
-
-    // Drain all messages in the queue
-    T_MQTT_payload payload{};
-    while (mqtt_client->try_get_mqtt_msg(&payload)) {
-        to_upper(payload.message);
-        if (strcmp(payload.message, "STOP") == 0) {
-            return true;
-        }
-    }
-    return false;
-}
-
 bool GarageDoor::get_remote_command(char *cmd)
 {
     if (!(*mqtt_client)()) {
@@ -321,15 +297,6 @@ bool GarageDoor::get_remote_command(char *cmd)
         return false;
     }
 
-    // static absolute_time_t last_poll = get_absolute_time();
-
-    // Poll MQTT every 25–50 ms
-    // if (absolute_time_diff_us(last_poll, get_absolute_time()) > 25000) {
-    //     mqtt_client->yield(5);
-    //     last_poll = get_absolute_time();
-    // }
-
-    // Drain all messages in the queue
     T_MQTT_payload payload{};
     if (mqtt_client->try_get_mqtt_msg(&payload)) {
         to_upper(payload.message);
@@ -340,50 +307,50 @@ bool GarageDoor::get_remote_command(char *cmd)
     return false;
 }
 
-void GarageDoor::remote_control()
-{
-    if (!(*mqtt_client)()) {
-        std::cout << "Client not connected :(" << std::endl;
-        return;
-    }
+// void GarageDoor::remote_control()
+// {
+//     if (!(*mqtt_client)()) {
+//         std::cout << "Client not connected :(" << std::endl;
+//         return;
+//     }
 
-    T_MQTT_payload payload_buff{};
-    if (mqtt_client->try_get_mqtt_msg(&payload_buff) &&
-        strcmp(payload_buff.topic, COMMAND_TOPIC) == 0)
-    {
-        to_upper(payload_buff.message);
+//     T_MQTT_payload payload_buff{};
+//     if (mqtt_client->try_get_mqtt_msg(&payload_buff) &&
+//         strcmp(payload_buff.topic, COMMAND_TOPIC) == 0)
+//     {
+//         to_upper(payload_buff.message);
 
-        int command = (
-            strcmp(payload_buff.message, "OPEN")    == 0    ? 1 :
-            strcmp(payload_buff.message, "CLOSE")   == 0    ? 2 :
-            strcmp(payload_buff.message, "STOP")    == 0    ? 3 : 0
-        );
+//         int command = (
+//             strcmp(payload_buff.message, "OPEN")    == 0    ? 1 :
+//             strcmp(payload_buff.message, "CLOSE")   == 0    ? 2 :
+//             strcmp(payload_buff.message, "STOP")    == 0    ? 3 : 0
+//         );
 
-        int rc = -1;
-        switch (command) {
-            case 1:
-                rc = mqtt_client->send_message(RESPONSE_TOPIC, "Opening door...");
-                if (rc == 0) {
+//         int rc = -1;
+//         switch (command) {
+//             case 1:
+//                 rc = mqtt_client->send_message(RESPONSE_TOPIC, "Opening door...");
+//                 if (rc == 0) {
 
-                }
-                break;
-            case 2:
-                rc = mqtt_client->send_message(RESPONSE_TOPIC, "Closing door...");
-                break;
-            case 3:
-                rc = mqtt_client->send_message(RESPONSE_TOPIC, "Stopping door...");
-                break;
-            default:
-                rc = mqtt_client->send_message(RESPONSE_TOPIC, "invalid command");
-                break;
-        }
+//                 }
+//                 break;
+//             case 2:
+//                 rc = mqtt_client->send_message(RESPONSE_TOPIC, "Closing door...");
+//                 break;
+//             case 3:
+//                 rc = mqtt_client->send_message(RESPONSE_TOPIC, "Stopping door...");
+//                 break;
+//             default:
+//                 rc = mqtt_client->send_message(RESPONSE_TOPIC, "invalid command");
+//                 break;
+//         }
 
-        if (rc != 0)
-            std::cout << "failed " << rc << std::endl;
-        else
-            std::cout << "success" << std::endl;
-    }
-}
+//         if (rc != 0)
+//             std::cout << "failed " << rc << std::endl;
+//         else
+//             std::cout << "success" << std::endl;
+//     }
+// }
 
 /*
     FOR TESTING
@@ -394,17 +361,17 @@ void GarageDoor::reset()
         program_state->reset_eeprom();
 }
 
-void GarageDoor::test_mqtt()
-{
-    if ((*mqtt_client)()) {
-        T_MQTT_payload payload_buff;
-        if (mqtt_client->try_get_mqtt_msg(&payload_buff)) {
-            std::cout << "MQTT message recieved: \n"
-                << "Topic: " << payload_buff.topic << "\n"
-                << "Message: " << payload_buff.message << "\n"
-                << "Command topic cmp: " << strcmp(payload_buff.topic, COMMAND_TOPIC) << "\n"
-                << "Response topic cmp: " << strcmp(payload_buff.topic, RESPONSE_TOPIC) << "\n"
-                << "Status topic cmp: " << strcmp(payload_buff.topic, STATUS_TOPIC) << std::endl;
-        }
-    }
-}
+// void GarageDoor::test_mqtt()
+// {
+//     if ((*mqtt_client)()) {
+//         T_MQTT_payload payload_buff;
+//         if (mqtt_client->try_get_mqtt_msg(&payload_buff)) {
+//             std::cout << "MQTT message recieved: \n"
+//                 << "Topic: " << payload_buff.topic << "\n"
+//                 << "Message: " << payload_buff.message << "\n"
+//                 << "Command topic cmp: " << strcmp(payload_buff.topic, COMMAND_TOPIC) << "\n"
+//                 << "Response topic cmp: " << strcmp(payload_buff.topic, RESPONSE_TOPIC) << "\n"
+//                 << "Status topic cmp: " << strcmp(payload_buff.topic, STATUS_TOPIC) << std::endl;
+//         }
+//     }
+// }
