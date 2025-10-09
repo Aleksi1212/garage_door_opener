@@ -52,7 +52,7 @@ int main()
         if (auto mqtt = weak_mqtt.lock()) {
             if ((*mqtt)()) {
                 mqtt->send_message(STATUS_TOPIC,
-                    "Calibrated: %s\nDoor state %s\nError state: %s",
+                    "Calibrated: %s, Door state: %s, Error state: %s",
                     state.calibrated ? "TRUE" : "FALSE",
                     (state.door_position > 0 && state.door_position < state.steps_down) ? "IN BETWEEN" :
                         state.is_open ? "OPEN" : "CLOSED",
@@ -65,7 +65,16 @@ int main()
     GarageDoor garage_door(ps_ptr, mqtt_ptr);
     garage_door.connect_mqtt_client();
 
-    if ((*mqtt_ptr)()) led3(true);
+    if ((*mqtt_ptr)()) {
+        led3(true);
+        mqtt_ptr->send_message(STATUS_TOPIC,
+            "Calibrated: %s\nDoor state %s\nError state: %s",
+            ps.calibrated ? "TRUE" : "FALSE",
+            (ps.door_position > 0 && ps.door_position < ps.steps_down) ? "IN BETWEEN" :
+                ps.is_open ? "OPEN" : "CLOSED",
+            ps.is_door_stuck ? "DOOR STUCK" : "NO ERROR"
+        );
+    }
 
     absolute_time_t starttime = get_absolute_time();
 
@@ -97,7 +106,6 @@ int main()
             } else {
                 led1(false);
                 led2(false);
-                led3(false);
             }
 
             garage_door.calibrate_motor();
