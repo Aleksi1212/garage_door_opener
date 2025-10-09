@@ -20,7 +20,7 @@ git submodule update --init --recursive
 #endif
 ```
 
-<b>Run mqtt server</b>
+<b>Run mqtt server</b><br>
 Copy your mosquitto.conf into config/mosquitto.conf and run:
 ```
 /* AS ADMIN */
