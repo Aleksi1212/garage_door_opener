@@ -39,6 +39,9 @@ int main()
         if (!ps.calibrated) {
             garage_door.calibrate_motor();
         }
+        else {
+            garage_door.local_control();
+        }
         garage_door.reset();
         sleep_ms(100);
     }

@@ -118,6 +118,67 @@ void GarageDoor::calibrate_motor()
     }
 }
 
+void GarageDoor::local_control()
+{
+    T_ProgramState ps = program_state->read();
+    ps.is_running = 0;
+    int steps_to_run = 0;
+    int door_position = ps.door_position;
+    if (ps.is_running == 0 && sw1())
+    {
+        ps.is_running = 1;
+        program_state->write(ps);
+
+        if (ps.is_open==0) {
+            //if (ps.door_position > 0) steps_to_run = ps.door_position;
+            //else steps_to_run = ps.steps_down;
+            //std::cout << steps_to_run << std::endl;
+            //for (int i = 0; i < ps.steps_down ? ps.door_position <= 0 : ps.door_position; ++i) {
+            for (int i = 0; i < ((ps.steps_down + ps.steps_up) / 2) - ps.door_position; ++i) {
+                if (sw1()) {
+                    ps.is_open = 1;
+                    ps.is_running = 0;
+                    //if (ps.door_position > 0) ps.door_position = 0;
+                    //else ps.door_position = door_position;
+                    ps.door_position = door_position;
+                    program_state->write(ps);
+                    return;
+                }
+                half_step_motor(true);
+                door_position++;
+            }
+            ps.is_running = 0;
+            ps.is_open = 1;
+            ps.door_position = door_position;
+            program_state->write(ps);
+        } else {
+            //if (ps.door_position > 0) steps_to_run = ps.door_position;
+            //else steps_to_run = ps.steps_down;
+            //std::cout << ps.door_position << std::endl;
+            //std::cout << steps_to_run << std::endl;
+            //for (int i = 0; i < ps.steps_up ? ps.door_position <= 0 : ps.door_position; ++i) {
+            for (int i = 0; i < ps.door_position; ++i) {
+                 if (sw1()) {
+                    ps.is_open = 0;
+                    ps.is_running = 0;
+                  //   if (ps.door_position > 0) ps.door_position = 0;
+                    // else ps.door_position = door_position;
+                    ps.door_position = door_position;
+                    program_state->write(ps);
+                    return;
+                }
+                half_step_motor(false);
+                door_position--;
+            }
+            ps.is_running = 0;
+            ps.is_open = 0;
+            ps.door_position = door_position;
+            program_state->write(ps);
+
+        }
+    }
+}
+
 // for testing
 void GarageDoor::reset()
 {
