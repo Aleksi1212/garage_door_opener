@@ -4,6 +4,7 @@ import paho.mqtt.client as mqtt
 BROKER = "192.168.0.10"  # Public broker for testing
 PORT = 1884
 TOPIC = "garage/door/response"
+TOPIC_1 = "garage/door/status"
 
 # Called when the client connects to the broker
 def on_connect(client, userdata, flags, rc):
@@ -11,6 +12,8 @@ def on_connect(client, userdata, flags, rc):
         print("Connected successfully!")
         client.subscribe(TOPIC)
         print(f"Subscribed to topic: {TOPIC}")
+        client.subscribe(TOPIC_1)
+        print(f"Subscribed to topic: {TOPIC_1}")
     else:
         print(f"Connection failed with code {rc}")
 
