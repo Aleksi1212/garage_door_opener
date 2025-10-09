@@ -10,14 +10,14 @@
 #define STEP_SEQ_COUNT 8
 
 static const uint8_t STEP_SEQUENCE[STEP_SEQ_COUNT][4] = {
-    {1, 0, 0, 0},  // Step 1
-    {1, 1, 0, 0},  // Step 2
-    {0, 1, 0, 0},  // Step 3
-    {0, 1, 1, 0},  // Step 4
-    {0, 0, 1, 0},  // Step 5
-    {0, 0, 1, 1},  // Step 6
-    {0, 0, 0, 1},  // Step 7
-    {1, 0, 0, 1}   // Step 8
+    {1, 0, 0, 0},
+    {1, 1, 0, 0},
+    {0, 1, 0, 0},
+    {0, 1, 1, 0},
+    {0, 0, 1, 0},
+    {0, 0, 1, 1},
+    {0, 0, 0, 1},
+    {1, 0, 0, 1}
 };
 
 static queue_t rot_encoder_queue;
@@ -70,9 +70,6 @@ static void to_upper(char *str)
     }
 }
 
-/*
-    GarageDoor methods
-*/
 GarageDoor::GarageDoor(
     std::shared_ptr<ProgramState> state,
     std::shared_ptr<Mqtt> mqtt
@@ -89,10 +86,6 @@ GarageDoor::GarageDoor(
     sw1(SW_1, -1, true, true, true, true, GPIO_IRQ_EDGE_FALL),
     sw2(SW_2, -1, true, true, true, true, GPIO_IRQ_EDGE_FALL),
 
-    led1(LED_1, -1, false, false),
-    led2(LED_2, -1, false, false),
-    led3(LED_3, -1, false, false),
-
     lim_sw1(LIMIT_SW_1, -1, true, true, true),
     lim_sw2(LIMIT_SW_2, -1, true, true, true),
 
@@ -103,10 +96,7 @@ GarageDoor::GarageDoor(
     queue_init(&sw0_queue, sizeof(uint8_t), 10);
     queue_init(&sw1_queue, sizeof(uint8_t), 10);
     queue_init(&sw2_queue, sizeof(uint8_t), 10);
-
     queue_init(&rot_encoder_queue, sizeof(uint8_t), 10);
-
-    led1.write(true);
 }
 
 void GarageDoor::half_step_motor(bool reverse)
@@ -165,9 +155,6 @@ void GarageDoor::calibrate_motor()
         ps.calibrated = 1;
 
         program_state->write(ps);
-
-        led1.write(false);
-        led2.write(true);
     }
 }
 
@@ -181,9 +168,6 @@ void GarageDoor::connect_mqtt_client()
 
 void GarageDoor::handle_door_stop(T_ProgramState& ps, bool remote_cmd, int door_position)
 {
-    if (remote_cmd) {
-        mqtt_client->send_message(RESPONSE_TOPIC, "Stopping door...");
-    }
     ps.is_running = 0;
     ps.door_position = door_position;
     program_state->write(ps);
@@ -194,22 +178,35 @@ void GarageDoor::handle_door_stop(T_ProgramState& ps, bool remote_cmd, int door_
     return;
 }
 
+uint64_t millis_now() {
+    return time_us_64() / 1000; // convert to milliseconds
+}
+
 void GarageDoor::local_control()
 {
     auto ps = program_state->read();
     int door_position = ps.door_position;
-    bool run_cmd = false,
-        stop_cmd = false;
+    bool run_cmd = false, stop_cmd = false;
+    uint8_t rot;
+    uint64_t lastEncoderTime = millis_now();
 
-
-    // offset is power off during running
     if (ps.is_running && (sw1() || (run_cmd = get_remote_command("RUN"))))
     {
         if (ps.is_open) {
             ps.is_open = 0;
             program_state->write(ps);
 
-            while(!lim_sw1()) half_step_motor(false);
+            while(!lim_sw1()) {
+                half_step_motor(false);
+                if (queue_try_remove(&rot_encoder_queue, &rot)) {
+                    lastEncoderTime = millis_now();
+                }
+                if (millis_now() - lastEncoderTime > 1000) {
+                    program_state->reset_eeprom();
+                    report();
+                    return;
+                }
+            }
             ps.door_position = 0;
         } else {
             ps.is_open = 1;
@@ -231,36 +228,27 @@ void GarageDoor::local_control()
             ps.is_open = 1;
             program_state->write(ps);
 
-            // if (remote_cmd) {
-            //     mqtt_client->send_message(RESPONSE_TOPIC, "Opening door...");
-            // }
-
             for (int i = 0; i < ((ps.steps_down + ps.steps_up) / 2) - ps.door_position; ++i) {
                 mqtt_client->yield(1);
                 half_step_motor(true);
 
-                // while (queue_try_remove(&rot_encoder_queue, &rot)) {
-
-                // }
-
                 if (sw1() || (stop_cmd = get_remote_command("STOP"))) {
+                    handle_door_stop(ps, stop_cmd, door_position);
+                    return;
+                }
 
-                    // if (remote_cmd) {
-                    //     mqtt_client->send_message(RESPONSE_TOPIC, "Stopping door...");
-                    // }
-                    ps.is_running = 0;
-                    ps.door_position = door_position;
-                    program_state->write(ps);
-
-                    if (stop_cmd) {
-                        mqtt_client->send_message(RESPONSE_TOPIC, "Door stopped.");
-                    }
+                if (queue_try_remove(&rot_encoder_queue, &rot)) {
+                    lastEncoderTime = millis_now();
+                }
+                if (millis_now() - lastEncoderTime > 1000) {
+                    program_state->reset_eeprom();
+                    report();
                     return;
                 }
 
                 door_position++;
-
             }
+
             ps.is_running = 0;
             ps.door_position = door_position;
             program_state->write(ps);
@@ -272,32 +260,27 @@ void GarageDoor::local_control()
             ps.is_open = 0;
             program_state->write(ps);
 
-            // if (remote_cmd) {
-            //     mqtt_client->send_message(RESPONSE_TOPIC, "Closing door...");
-            // }
-
             for (int i = 0; i < ps.door_position; ++i) {
                 mqtt_client->yield(1);
                 half_step_motor(false);
 
                 if (sw1() || (stop_cmd = get_remote_command("STOP"))) {
-                    // if (remote_cmd) {
-                    //     mqtt_client->send_message(RESPONSE_TOPIC, "Stopping door...");
-                    // }
-                    ps.is_running = 0;
-                    ps.door_position = door_position;
-                    program_state->write(ps);
+                    handle_door_stop(ps, stop_cmd, door_position);
+                    return;
+                }
 
-                    if (stop_cmd) {
-                        mqtt_client->send_message(RESPONSE_TOPIC, "Door stopped.");
-                    }
-                    // return handle_door_stop(ps, remote_cmd, door_position);
+                if (queue_try_remove(&rot_encoder_queue, &rot)) {
+                    lastEncoderTime = millis_now();
+                }
+                if (millis_now() - lastEncoderTime > 1000) {
+                    program_state->reset_eeprom();
+                    report();
                     return;
                 }
 
                 door_position--;
-
             }
+
             ps.is_running = 0;
             ps.door_position = door_position;
             program_state->write(ps);

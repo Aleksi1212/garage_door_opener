@@ -5,8 +5,9 @@
 #include <gpio.hpp>
 #include <program_state.hpp>
 #include <mqtt.hpp>
+#include <Error_state_handling.hpp>
 
-class GarageDoor
+class GarageDoor : private error_status
 {
 private:
     std::shared_ptr<ProgramState> program_state;
@@ -20,10 +21,6 @@ private:
     GPIOPin sw0;
     GPIOPin sw1;
     GPIOPin sw2;
-
-    GPIOPin led1;
-    GPIOPin led2;
-    GPIOPin led3;
 
     GPIOPin lim_sw1;
     GPIOPin lim_sw2;

@@ -14,6 +14,7 @@ ProgramState::ProgramState() : Eeprom(EEPROM_PORT, EEPROM_BAUD_RATE)
     state.is_running = 0;
     state.calibrated = 0;
     state.is_open = 0;
+    state.is_door_stuck = 0;
 
     load_from_eeprom();
 }
