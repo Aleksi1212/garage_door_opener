@@ -5,6 +5,12 @@
 #include <program_state.hpp>
 #include <hardware.hpp>
 #include <irq_callback.hpp>
+#include <pico/multicore.h>
+
+#include <Countdown.hpp>
+#include <IPStack.hpp>
+#include "MQTTClient/src/MQTTClient.h"
+#include <mqtt.hpp>
 
 using namespace std;
 
@@ -15,6 +21,12 @@ void irq_callback(uint gpio, uint32_t event_mask)
         case ROT_SIG_A:
             rot_encoder_callback(event_mask);
             break;
+        case SW_0:
+            sw0_callback(event_mask);
+            break;
+        case SW_2:
+            sw2_callback(event_mask);
+            break;
     }
 }
 
@@ -22,9 +34,13 @@ int main()
 {
     stdio_init_all();
 
-    auto ps_ptr = make_shared<ProgramState>();
+    cout << "\nBOOT\n" << endl;
 
-    GarageDoor garage_door(ps_ptr);
+    auto ps_ptr = make_shared<ProgramState>();
+    auto mqtt_ptr = Mqtt::create();
+
+    GarageDoor garage_door(ps_ptr, mqtt_ptr);
+    garage_door.connect_mqtt_client();
 
     while (true)
     {
@@ -38,11 +54,15 @@ int main()
 
         if (!ps.calibrated) {
             garage_door.calibrate_motor();
-        }
-        else {
+        } else {
             garage_door.local_control();
         }
+
         garage_door.reset();
+
+        mqtt_ptr->yield(100);
+
+        tight_loop_contents();
         sleep_ms(100);
     }
 

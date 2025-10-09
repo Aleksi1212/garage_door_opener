@@ -1,3 +1,5 @@
 .vscode
 build
 cmake-build-debug
+config
+include/network_info.h

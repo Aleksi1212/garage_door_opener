@@ -15,7 +15,7 @@ class GPIOPin
             bool input = true,
             bool pullup = true,
             bool invert = false,
-            bool callback = false,
+            bool callback_enabled = false,
             uint32_t event_mask = 0
             
         );

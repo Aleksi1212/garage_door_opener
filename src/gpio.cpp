@@ -10,7 +10,7 @@ GPIOPin::GPIOPin(
     bool input,
     bool pullup,
     bool invert,
-    bool callback,
+    bool callback_enabled,
     uint32_t event_mask
 )
 {
@@ -30,7 +30,7 @@ GPIOPin::GPIOPin(
         gpio_set_outover(pin, GPIO_OVERRIDE_INVERT);
     }
 
-    gpio_set_irq_enabled_with_callback(pin, event_mask, callback, &irq_callback);
+    gpio_set_irq_enabled_with_callback(pin, event_mask, callback_enabled, &irq_callback);
 
     pin_num = pin;
 }

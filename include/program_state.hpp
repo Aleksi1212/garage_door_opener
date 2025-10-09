@@ -17,25 +17,27 @@ struct T_ProgramState
 /* --------------------------------------------------------------------
  * EEPROM layout (highest addresses reserve space for ProgramState)
  *
- * 0x7FFF  ┐
- * 0x7FFE  │  steps_up           (low, high)
- * 0x7FFD  │  ~steps_up          (low, high)
- * 0x7FFC  ┘
- * 0x7FFB  ┐
- * 0x7FFA  │  steps_down         (low, high)
- * 0x7FF9  │  ~steps_down        (low, high)
- * 0x7FF8  ┘
- * 0x7FF7  ┐
- * 0x7FF6  │  door_position      (low, high)
- * 0x7FF5  │  ~door_position     (low, high)
- * 0x7FF4  ┘
- * 0x7FF3  is_running            (1 byte)
- * 0x7FF2  ~is_running           (1 byte)
- * 0x7FF1  calibrated            (1 byte)
- * 0x7FF0  ~calibrated           (1 byte)
- * 0x7FEF  is_open               (1 byte)
- * 0x7FEE  ~is_open              (1 byte)
+ * 0x7FD1  ┐
+ * 0x7FD0  │  is_open               (1 byte)
+ * 0x7FCF  │  ~calibrated           (1 byte)
+ * 0x7FCE  │  calibrated            (1 byte)
+ * 0x7FCD  │  ~is_running           (1 byte)
+ * 0x7FCC  │  is_running            (1 byte)
+ * 0x7FCB  ┘
+ * 0x7FCA  ┐
+ * 0x7FC9  │  ~door_position        (low, high)
+ * 0x7FC8  │  door_position         (low, high)
+ * 0x7FC7  ┘
+ * 0x7FC6  ┐
+ * 0x7FC5  │  ~steps_down           (low, high)
+ * 0x7FC4  │  steps_down            (low, high)
+ * 0x7FC3  ┘
+ * 0x7FC2  ┐
+ * 0x7FC1  │  ~steps_up             (low, high)
+ * 0x7FC0  │  steps_up              (low, high)
+ * 0x7FBF  ┘
  * ------------------------------------------------------------------ */
+
 
 #define EE_ADDR_STEPS_UP           0x7FC0  // 2 bytes
 #define EE_ADDR_STEPS_UP_INV       0x7FC2  // 2 bytes
