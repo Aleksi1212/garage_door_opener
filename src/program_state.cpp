@@ -19,6 +19,11 @@ ProgramState::ProgramState() : Eeprom(EEPROM_PORT, EEPROM_BAUD_RATE)
     load_from_eeprom();
 }
 
+void ProgramState::add_write_observer(WriteObserver obs)
+{
+    write_observers.push_back(std::move(obs));
+}
+
 void ProgramState::write_to_eeprom()
 {
 
@@ -41,8 +46,12 @@ void ProgramState::write_to_eeprom()
     Eeprom::write_byte(EE_ADDR_IS_OPEN + 1, ~state.is_open);
     Eeprom::write_byte(EE_ADDR_IS_OPEN, state.is_open);
 
-
+    Eeprom::write_byte(EE_ADDR_IS_DOOR_STUCK + 1, ~state.is_door_stuck);
+    Eeprom::write_byte(EE_ADDR_IS_DOOR_STUCK, state.is_door_stuck);
     
+    for (auto& w_obs : write_observers) {
+        w_obs(state);
+    }
 }
 
 void ProgramState::load_from_eeprom()
@@ -94,6 +103,14 @@ void ProgramState::load_from_eeprom()
 
     if ((uint8_t)(is_open ^ is_open_inv) == 0xFF) {
         state.is_open = is_open;
+    }
+
+    /* Load is_door_stuck*/
+    uint8_t is_door_stuck = Eeprom::read_byte(EE_ADDR_IS_DOOR_STUCK);
+    uint8_t is_door_stuck_inv = Eeprom::read_byte(EE_ADDR_IS_DOOR_STUCK + 1);
+
+    if ((uint8_t)(is_door_stuck ^ is_door_stuck_inv) == 0xFF) {
+        state.is_door_stuck = is_door_stuck;
     }
 
 }

@@ -3,6 +3,7 @@
 #include <network_info.h>
 #include <hardware.hpp>
 
+
 using namespace std;
 
 Mqtt::Mqtt() : ipstack(SSID, PW), client(ipstack)
@@ -102,7 +103,7 @@ bool Mqtt::try_get_mqtt_msg(T_MQTT_payload *payload_buff)
     return queue_try_remove(&mqtt_msg_queue, payload_buff);
 }
 
-int Mqtt::send_message(const char *topic, char *message)
+int Mqtt::send_message(const char *topic, char *format, ...)
 {
     // if (time_reached(mqtt_send)) {
         // mqtt_send = delayed_by_ms(mqtt_send, 2000);
@@ -110,11 +111,16 @@ int Mqtt::send_message(const char *topic, char *message)
     MQTT::Message msg{};
     msg.retained = false;
     msg.dup = false;
+    msg.qos = MQTT::QOS0;
 
-    snprintf(publish_buf, MQTT_MSG_SIZE, "%s", message);
+    va_list args;
+    va_start(args, format);
+    vsnprintf(publish_buf, MQTT_MSG_SIZE, format, args);
+    va_end(args);
+
+    // snprintf(publish_buf, MQTT_MSG_SIZE, "%s", message);
     msg.payload = publish_buf;
     msg.payloadlen = strlen(publish_buf);
-    msg.qos = MQTT::QOS0;
 
     return client.publish(topic, msg);
     // }

@@ -49,6 +49,7 @@ public:
     void connect_mqtt_client();
     // void remote_control();
     void control_motor();
+    // int send_status(char *format, ...);
 
     /* TESTING */
     void reset();

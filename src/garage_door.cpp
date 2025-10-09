@@ -6,6 +6,8 @@
 #include <iostream>
 #include <hardware.hpp>
 #include <array>
+#include <cstdarg> 
+#include <cstdio>
 
 #define STEP_SEQ_COUNT 8
 
@@ -239,6 +241,8 @@ void GarageDoor::control_motor()
                 }
                 if (millis_now() - lastEncoderTime > 1000) {
                     program_state->reset_eeprom();
+                    ps.is_door_stuck = 1;
+                    program_state->write(ps);
                     return;
                 }
 
@@ -270,6 +274,9 @@ void GarageDoor::control_motor()
                 }
                 if (millis_now() - lastEncoderTime > 1000) {
                     program_state->reset_eeprom();
+                    ps.is_door_stuck = 1;
+                    program_state->write(ps);
+                    // send_status("Door state: OPEN");
                     return;
                 }
 
