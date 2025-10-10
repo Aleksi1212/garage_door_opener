@@ -6,6 +6,9 @@
 
 using namespace std;
 
+/*
+    Init mqtt
+*/
 Mqtt::Mqtt() : ipstack(SSID, PW), client(ipstack)
 {
     data = MQTTPacket_connectData_initializer;
@@ -20,7 +23,11 @@ Mqtt::Mqtt() : ipstack(SSID, PW), client(ipstack)
 
     queue_init(&mqtt_msg_queue, sizeof(T_MQTT_payload), 10);
 }
+/* END */
 
+/*
+    Creator
+*/
 weak_ptr<Mqtt> Mqtt::instance_ptr;
 void Mqtt::init_instance() { instance_ptr = shared_from_this(); }
 shared_ptr<Mqtt> Mqtt::create()
@@ -29,8 +36,13 @@ shared_ptr<Mqtt> Mqtt::create()
     ptr->init_instance();
     return ptr;
 }
+/* END */
 
-bool Mqtt::operator()() { return client.isConnected(); }
+bool Mqtt::operator()() { return client.isConnected(); } // Is client connected?
+
+/*
+    Try to connect to internet
+*/
 void Mqtt::tcp_client_connect()
 {
     cout << "TCP connecting..." << endl;
@@ -42,6 +54,11 @@ void Mqtt::tcp_client_connect()
     }
     cout << "Connected to " << HOSTNAME << ":" << PORT << endl;
 }
+/* END */
+
+/*
+    Try to subscribe to a mqtt topic
+*/
 void Mqtt::subscirbe(const char *topic)
 {
     mqtt_rc = client.subscribe(topic, MQTT::QOS0, Mqtt::msg_handler_static);
@@ -51,6 +68,11 @@ void Mqtt::subscirbe(const char *topic)
     }
     cout << "MQTT subscirbed to " << topic << endl;
 }
+/* END */
+
+/*
+    Try to connect to mqtt server
+*/
 void Mqtt::connect()
 {
     if (tcp_rc != 1) tcp_client_connect();
@@ -69,7 +91,11 @@ void Mqtt::connect()
     subscirbe((char *)RESPONSE_TOPIC);
     subscirbe((char *)STATUS_TOPIC);
 }
+/* END */
 
+/*
+    Mqtt message handlers
+*/
 void Mqtt::msg_handler_instance(MQTT::MessageData &md)
 {
     auto &message = md.message;
@@ -88,26 +114,34 @@ void Mqtt::msg_handler_instance(MQTT::MessageData &md)
     }
     snprintf(payload.message, sizeof(payload.message), "%.*s", (int)message.payloadlen, (char *)message.payload);
 
+    // Add message to queue
     queue_try_add(&mqtt_msg_queue, &payload);
 }
 
+// static message handler for "client.subscibe" method
 void Mqtt::msg_handler_static(MQTT::MessageData &md)
 {
     if (auto inst = instance_ptr.lock()) {
         inst->msg_handler_instance(md);
     }
 }
+/* END */
 
+
+/*
+    Gets mqtt message from queue
+*/
 bool Mqtt::try_get_mqtt_msg(T_MQTT_payload *payload_buff) 
 {
     return queue_try_remove(&mqtt_msg_queue, payload_buff);
 }
+/* END */
 
+/*
+    Sends a message to mqtt server
+*/
 int Mqtt::send_message(const char *topic, char *format, ...)
 {
-    // if (time_reached(mqtt_send)) {
-        // mqtt_send = delayed_by_ms(mqtt_send, 2000);
-
     MQTT::Message msg{};
     msg.retained = false;
     msg.dup = false;
@@ -118,13 +152,12 @@ int Mqtt::send_message(const char *topic, char *format, ...)
     vsnprintf(publish_buf, MQTT_MSG_SIZE, format, args);
     va_end(args);
 
-    // snprintf(publish_buf, MQTT_MSG_SIZE, "%s", message);
     msg.payload = publish_buf;
     msg.payloadlen = strlen(publish_buf);
 
     return client.publish(topic, msg);
-    // }
-    // return -1;
 }
+/* END */
 
-void Mqtt::yield(unsigned long timeout_ms) { /*if (client.isConnected()) std::cout<< "yield" << std::endl;*/ client.yield(timeout_ms); }
+// Yields client for timeout_ms milliseconds
+void Mqtt::yield(unsigned long timeout_ms) { client.yield(timeout_ms); }

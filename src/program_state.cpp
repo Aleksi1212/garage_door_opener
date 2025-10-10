@@ -49,6 +49,7 @@ void ProgramState::write_to_eeprom()
     Eeprom::write_byte(EE_ADDR_IS_DOOR_STUCK + 1, ~state.is_door_stuck);
     Eeprom::write_byte(EE_ADDR_IS_DOOR_STUCK, state.is_door_stuck);
     
+    // Notify observers if writted to eeprom
     for (auto& w_obs : write_observers) {
         w_obs(state);
     }

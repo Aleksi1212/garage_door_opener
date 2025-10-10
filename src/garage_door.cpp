@@ -11,6 +11,9 @@
 
 #define STEP_SEQ_COUNT 8
 
+/*
+    Stepper motor steps
+*/
 static const uint8_t STEP_SEQUENCE[STEP_SEQ_COUNT][4] = {
     {1, 0, 0, 0},
     {1, 1, 0, 0},
@@ -21,7 +24,11 @@ static const uint8_t STEP_SEQUENCE[STEP_SEQ_COUNT][4] = {
     {0, 0, 0, 1},
     {1, 0, 0, 1}
 };
+/* END */
 
+/*
+    Callback queues and methods for gpio pins
+*/
 static queue_t rot_encoder_queue;
 static queue_t sw0_queue;
 static queue_t sw1_queue;
@@ -62,7 +69,11 @@ void sw2_callback(uint32_t event_mask)
         queue_try_add(&sw2_queue, &event);
     }
 }
+/* END */
 
+/*
+    Util functions
+*/
 static void to_upper(char *str)
 {
     if (!str) return;
@@ -72,10 +83,15 @@ static void to_upper(char *str)
     }
 }
 
-uint64_t millis_now() {
+static uint64_t millis_now() {
     return time_us_64() / 1000; // convert to milliseconds
 }
+/* END */
 
+
+/*
+    Garage door methods
+*/
 GarageDoor::GarageDoor(
     std::shared_ptr<ProgramState> state,
     std::shared_ptr<Mqtt> mqtt
@@ -138,8 +154,11 @@ void GarageDoor::calibrate_motor()
         program_state->write(ps);
 
         uint8_t rot = 0;
-        while(queue_try_remove(&rot_encoder_queue, &rot));
+        while(queue_try_remove(&rot_encoder_queue, &rot)); // clear queue
 
+        /*
+            If motor is in the middle offset it until it hits the limit switch 1
+        */
         while(!lim_sw1()) {
             half_step_motor();
             
@@ -151,6 +170,10 @@ void GarageDoor::calibrate_motor()
                 return;
             }
         }
+
+        /*
+            Run motor until hits limit switch 2, and count how many steps it takes
+        */
         while(!lim_sw2()) {
             half_step_motor(true);
             ps.steps_down++;
@@ -164,6 +187,10 @@ void GarageDoor::calibrate_motor()
                 return;
             }
         }
+
+        /*
+            Run motor until hits limit switch 1, and count how many steps it takes
+        */
         while(!lim_sw1()) {
             half_step_motor();
             ps.steps_up++;
@@ -234,16 +261,21 @@ void GarageDoor::control_motor()
 
     if ((ps.steps_down + ps.steps_up) / 2 > 15000) return;
 
+    /*
+        Door was running when starting to run
+    */
     if (ps.is_running && (sw1() || (run_cmd = get_remote_command("RUN"))))
     {
         if (ps.is_open) {
             ps.is_open = 0;
             program_state->write(ps);
 
+            // Run motor until hits limit switch 1
             while(!lim_sw1()) {
-                if (count % 100 == 0) mqtt_client->yield(1);
+                if (count % 100 == 0) mqtt_client->yield(1); // yield mqtt client every 100th step
                 half_step_motor(false);
 
+                // Door stopped
                 if (sw1() || (stop_cmd = get_remote_command("STOP"))) {
                     handle_door_stop(ps, stop_cmd, 0, 1);
                     return;
@@ -252,6 +284,7 @@ void GarageDoor::control_motor()
                 if (queue_try_remove(&rot_encoder_queue, &rot)) {
                     lastEncoderTime = millis_now();
                 }
+                // door gets stuck
                 if (millis_now() - lastEncoderTime > 1000) {
                     handle_door_stuck(ps, run_cmd);
                     return;
@@ -263,10 +296,12 @@ void GarageDoor::control_motor()
             ps.is_open = 1;
             program_state->write(ps);
 
+            // Run motor until hits limit switch 2
             while(!lim_sw2()) {
-                if (count % 100 == 0) mqtt_client->yield(1);
+                if (count % 100 == 0) mqtt_client->yield(1); // yield mqtt client every 100th step
                 half_step_motor(true);
 
+                // door stopped
                 if (sw1() || (stop_cmd = get_remote_command("STOP"))) {
                     handle_door_stop(ps, stop_cmd, 0, 1);
                     return;
@@ -275,6 +310,7 @@ void GarageDoor::control_motor()
                 if (queue_try_remove(&rot_encoder_queue, &rot)) {
                     lastEncoderTime = millis_now();
                 }
+                // door gets stuck
                 if (millis_now() - lastEncoderTime > 1000) {
                     handle_door_stuck(ps, run_cmd);
                     return;
@@ -287,24 +323,31 @@ void GarageDoor::control_motor()
         ps.is_running = 0;
         program_state->write(ps);
 
+        // If remote control send a repsonse
         if (run_cmd) {
             mqtt_client->send_message(RESPONSE_TOPIC,
                 "Door %s.", ps.is_open ? "opened" : "closed");
         }
     }
+
+    /*
+        Door was not running when starting to run
+    */
     else if (ps.is_running == 0 && (sw1() || (run_cmd = get_remote_command("RUN"))))
     {
         ps.is_running = 1;
         program_state->write(ps);
 
         if (ps.is_open == 0) {
-            ps.is_open = 1;
+            ps.is_open = 1; // 
             program_state->write(ps);
 
+            // run door for step average - door position
             for (int i = 0; i < ((ps.steps_down + ps.steps_up) / 2) - ps.door_position; ++i) {
-                if (i % 100 == 0) mqtt_client->yield(1);
+                if (i % 100 == 0) mqtt_client->yield(1); // yield mqtt client every 100th step
                 half_step_motor(true);
 
+                // if stop
                 if (sw1() || (stop_cmd = get_remote_command("STOP"))) {
                     handle_door_stop(ps, stop_cmd, door_position);
                     return;
@@ -313,8 +356,8 @@ void GarageDoor::control_motor()
                 if (queue_try_remove(&rot_encoder_queue, &rot)) {
                     lastEncoderTime = millis_now();
                 }
+                // if stuck
                 if (millis_now() - lastEncoderTime > 1000) {
-                    // program_state->reset_eeprom();
                     handle_door_stuck(ps, run_cmd);
                     return;
                 }
@@ -326,6 +369,7 @@ void GarageDoor::control_motor()
             ps.door_position = door_position;
             program_state->write(ps);
 
+            // if remote command send response
             if (run_cmd) {
                 mqtt_client->send_message(RESPONSE_TOPIC, "Door opened.");
             }
@@ -333,12 +377,13 @@ void GarageDoor::control_motor()
             ps.is_open = 0;
             program_state->write(ps);
 
+            // run door for door position amount of steps
             for (int i = 0; i < ps.door_position; ++i) {
-                // mqtt_client->yield(1);
-                if (i % 100 == 0) mqtt_client->yield(1);
+                if (i % 100 == 0) mqtt_client->yield(1); // yield mqtt client every 100th step
 
                 half_step_motor(false);
 
+                // if stop
                 if (sw1() || (stop_cmd = get_remote_command("STOP"))) {
                     handle_door_stop(ps, stop_cmd, door_position);
                     return;
@@ -347,9 +392,10 @@ void GarageDoor::control_motor()
                 if (queue_try_remove(&rot_encoder_queue, &rot)) {
                     lastEncoderTime = millis_now();
                 }
+
+                // if stuck
                 if (millis_now() - lastEncoderTime > 1000) {
                     handle_door_stuck(ps, run_cmd);
-                    // send_status("Door state: OPEN");
                     return;
                 }
 
@@ -360,6 +406,7 @@ void GarageDoor::control_motor()
             ps.door_position = door_position;
             program_state->write(ps);
 
+            // if remote command send response
             if (run_cmd) {
                 mqtt_client->send_message(RESPONSE_TOPIC, "Door closed.");
             }
@@ -385,51 +432,6 @@ bool GarageDoor::get_remote_command(char *cmd)
     return false;
 }
 
-// void GarageDoor::remote_control()
-// {
-//     if (!(*mqtt_client)()) {
-//         std::cout << "Client not connected :(" << std::endl;
-//         return;
-//     }
-
-//     T_MQTT_payload payload_buff{};
-//     if (mqtt_client->try_get_mqtt_msg(&payload_buff) &&
-//         strcmp(payload_buff.topic, COMMAND_TOPIC) == 0)
-//     {
-//         to_upper(payload_buff.message);
-
-//         int command = (
-//             strcmp(payload_buff.message, "OPEN")    == 0    ? 1 :
-//             strcmp(payload_buff.message, "CLOSE")   == 0    ? 2 :
-//             strcmp(payload_buff.message, "STOP")    == 0    ? 3 : 0
-//         );
-
-//         int rc = -1;
-//         switch (command) {
-//             case 1:
-//                 rc = mqtt_client->send_message(RESPONSE_TOPIC, "Opening door...");
-//                 if (rc == 0) {
-
-//                 }
-//                 break;
-//             case 2:
-//                 rc = mqtt_client->send_message(RESPONSE_TOPIC, "Closing door...");
-//                 break;
-//             case 3:
-//                 rc = mqtt_client->send_message(RESPONSE_TOPIC, "Stopping door...");
-//                 break;
-//             default:
-//                 rc = mqtt_client->send_message(RESPONSE_TOPIC, "invalid command");
-//                 break;
-//         }
-
-//         if (rc != 0)
-//             std::cout << "failed " << rc << std::endl;
-//         else
-//             std::cout << "success" << std::endl;
-//     }
-// }
-
 /*
     FOR TESTING
 */
@@ -438,18 +440,3 @@ void GarageDoor::reset()
     if (rot_sw())
         program_state->reset_eeprom();
 }
-
-// void GarageDoor::test_mqtt()
-// {
-//     if ((*mqtt_client)()) {
-//         T_MQTT_payload payload_buff;
-//         if (mqtt_client->try_get_mqtt_msg(&payload_buff)) {
-//             std::cout << "MQTT message recieved: \n"
-//                 << "Topic: " << payload_buff.topic << "\n"
-//                 << "Message: " << payload_buff.message << "\n"
-//                 << "Command topic cmp: " << strcmp(payload_buff.topic, COMMAND_TOPIC) << "\n"
-//                 << "Response topic cmp: " << strcmp(payload_buff.topic, RESPONSE_TOPIC) << "\n"
-//                 << "Status topic cmp: " << strcmp(payload_buff.topic, STATUS_TOPIC) << std::endl;
-//         }
-//     }
-// }
