@@ -37,7 +37,8 @@ private:
 
     bool get_remote_command(char *cmd);
     // bool check_remote_stop();
-    void handle_door_stop(T_ProgramState& ps, bool remote_cmd, int door_position);
+    void handle_door_stop(T_ProgramState& ps, bool remote_cmd, int door_position, int is_running = 0);
+    void handle_door_stuck(T_ProgramState& ps, bool remote_cmd);
 
 public:
     GarageDoor(

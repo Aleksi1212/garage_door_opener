@@ -136,6 +136,7 @@ void ProgramState::reset_eeprom()
     state.is_running = 0;
     state.calibrated = 0;
     state.is_open = 0;
+    state.is_door_stuck = 0;
 
     write_to_eeprom();
 }

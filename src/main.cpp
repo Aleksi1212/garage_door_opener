@@ -51,13 +51,20 @@ int main()
     ps_ptr->add_write_observer([weak_mqtt](const T_ProgramState& state) {
         if (auto mqtt = weak_mqtt.lock()) {
             if ((*mqtt)()) {
-                mqtt->send_message(STATUS_TOPIC,
-                    "Calibrated: %s, Door state: %s, Error state: %s",
-                    state.calibrated ? "TRUE" : "FALSE",
-                    (state.door_position > 0 && state.door_position < state.steps_down) ? "IN BETWEEN" :
-                        state.is_open ? "OPEN" : "CLOSED",
-                    state.is_door_stuck ? "DOOR STUCK" : "NO ERROR"
-                );
+
+                if (state.is_door_stuck) {
+                    mqtt->send_message(STATUS_TOPIC, "DOOR STUCK :(");
+                } else {
+                    mqtt->send_message(STATUS_TOPIC,
+                        "Calibrated: %s, Door state: %s",
+                        state.calibrated ? "TRUE" : "FALSE",
+                        (state.door_position > 0 && state.door_position < (state.steps_down + state.steps_up) / 2) ? "IN BETWEEN" :
+                            state.is_open ? "OPEN" : "CLOSED"
+                    );
+                }
+                // string door_state = "";
+                // if () 
+
             }
         }
     });
@@ -81,13 +88,13 @@ int main()
     while (true)
     {
         ps = ps_ptr->read();
-        // Debug prints (left commented to avoid spamming stdout)
-        // cout << "Calibrated: " << (int)ps.calibrated << endl;
-        // cout << "Door position: " << (int)ps.door_position << endl;
-        // cout << "Is open: " << (int)ps.is_open << endl;
-        // cout << "Is running: " << (int)ps.is_running << endl;
-        // cout << "Steps up: " << (int)ps.steps_up << endl;
-        // cout << "Steps down: " << (int)ps.steps_down << "\n\n" << endl;
+        //Debug prints (left commented to avoid spamming stdout)
+        cout << "Calibrated: " << (int)ps.calibrated << endl;
+        cout << "Door position: " << (int)ps.door_position << endl;
+        cout << "Is open: " << (int)ps.is_open << endl;
+        cout << "Is running: " << (int)ps.is_running << endl;
+        cout << "Steps up: " << (int)ps.steps_up << endl;
+        cout << "Steps down: " << (int)ps.steps_down << "\n\n" << endl;
 
         if (!ps.calibrated) {
             // led1(true);
