@@ -3,3 +3,5 @@ build
 cmake-build-debug
 config
 include/network_info.h
+.venv
+__pycache__

@@ -59,7 +59,7 @@ class Mqtt : public std::enable_shared_from_this<Mqtt>
         bool operator() ();
         void connect();
         bool try_get_mqtt_msg(T_MQTT_payload *payload_buff);
-        int send_message(const char *topic, char *message);
+        int send_message(const char *topic, char *format, ...);
         void yield(unsigned long timeout_ms);
 };
 

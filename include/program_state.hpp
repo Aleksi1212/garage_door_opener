@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <eeprom.hpp>
+#include <functional>
 
 struct T_ProgramState
 {
@@ -18,24 +19,26 @@ struct T_ProgramState
 /* --------------------------------------------------------------------
  * EEPROM layout (highest addresses reserve space for ProgramState)
  *
- * 0x7FD1  ┐
- * 0x7FD0  │  is_open               (1 byte)
- * 0x7FCF  │  ~calibrated           (1 byte)
- * 0x7FCE  │  calibrated            (1 byte)
- * 0x7FCD  │  ~is_running           (1 byte)
- * 0x7FCC  │  is_running            (1 byte)
+ * 0x7FD3  ┐
+ * 0x7FD2  │  is_door_stuck          (1 byte)
+ * 0x7FD1  │  ~is_open               (1 byte)
+ * 0x7FD0  │  is_open                (1 byte)
+ * 0x7FCF  │  ~calibrated            (1 byte)
+ * 0x7FCE  │  calibrated             (1 byte)
+ * 0x7FCD  │  ~is_running            (1 byte)
+ * 0x7FCC  │  is_running             (1 byte)
  * 0x7FCB  ┘
  * 0x7FCA  ┐
- * 0x7FC9  │  ~door_position        (low, high)
- * 0x7FC8  │  door_position         (low, high)
+ * 0x7FC9  │  ~door_position         (low, high)
+ * 0x7FC8  │  door_position          (low, high)
  * 0x7FC7  ┘
  * 0x7FC6  ┐
- * 0x7FC5  │  ~steps_down           (low, high)
- * 0x7FC4  │  steps_down            (low, high)
+ * 0x7FC5  │  ~steps_down            (low, high)
+ * 0x7FC4  │  steps_down             (low, high)
  * 0x7FC3  ┘
  * 0x7FC2  ┐
- * 0x7FC1  │  ~steps_up             (low, high)
- * 0x7FC0  │  steps_up              (low, high)
+ * 0x7FC1  │  ~steps_up              (low, high)
+ * 0x7FC0  │  steps_up               (low, high)
  * 0x7FBF  ┘
  * ------------------------------------------------------------------ */
 
@@ -50,16 +53,19 @@ struct T_ProgramState
 #define EE_ADDR_DOOR_POSITION_INV  0x7FCA  // 2 bytes
 
 #define EE_ADDR_IS_RUNNING         0x7FCC  // 1 byte
-// its inverse is always +1
-// #define EE_ADDR_IS_RUNNING_INV   0x7FCD
+// inverse is 0x7FCD
 
 #define EE_ADDR_CALIBRATED         0x7FCE  // 1 byte
-// #define EE_ADDR_CALIBRATED_INV   0x7FCF
+// inverse is 0x7FCF
 
 #define EE_ADDR_IS_OPEN            0x7FD0  // 1 byte
-// #define EE_ADDR_IS_OPEN_INV      0x7FD1
+// inverse is 0x7FD1
+
+#define EE_ADDR_IS_DOOR_STUCK      0x7FD2  // 1 byte
+// You can define inverse if needed, e.g., 0x7FD3
 
 
+using WriteObserver = std::function<void(const T_ProgramState&)>;
 
 class ProgramState : private Eeprom
 {
@@ -69,6 +75,8 @@ class ProgramState : private Eeprom
         void write_to_eeprom();
         void load_from_eeprom();
 
+        std::vector<WriteObserver> write_observers;
+        
     public:
         ProgramState();
 
@@ -76,6 +84,8 @@ class ProgramState : private Eeprom
         T_ProgramState read();
 
         void reset_eeprom();
+
+        void add_write_observer(WriteObserver observer);
 };
 
 #endif
