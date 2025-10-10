@@ -1,7 +1,7 @@
 import paho.mqtt.client as mqtt
 
 # MQTT broker settings
-BROKER = "192.168.0.10"  # Public broker for testing
+BROKER = "192.168.50.146"  # Public broker for testing
 PORT = 1884
 TOPIC = "garage/door/response"
 TOPIC_1 = "garage/door/status"
